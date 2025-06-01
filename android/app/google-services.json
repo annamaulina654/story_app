@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "1074304070607",
+    "firebase_url": "https://coba-4c9b1-default-rtdb.firebaseio.com",
+    "project_id": "coba-4c9b1",
+    "storage_bucket": "coba-4c9b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1074304070607:android:95071553d4d90aad29d8ba",
+        "android_client_info": {
+          "package_name": "com.example.modul4"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEVuFKBRgDWUHdExeJ1PXoxP_k0ZYZfQ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1074304070607:android:f4483aaccdae5d8a29d8ba",
+        "android_client_info": {
+          "package_name": "com.example.story_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEVuFKBRgDWUHdExeJ1PXoxP_k0ZYZfQ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
