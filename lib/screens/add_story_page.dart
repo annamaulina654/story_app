@@ -30,6 +30,8 @@ class _AddStoryPageState extends State<AddStoryPage> {
   Position? _currentPosition;
   late final StoryService _storyService;
   late final PermissionService _permissionService; 
+  bool _useLocation = true; 
+
 
   @override
   void initState() {
@@ -40,7 +42,9 @@ class _AddStoryPageState extends State<AddStoryPage> {
       _descriptionController.text = widget.initialStoryData!.description;
       _currentLocationName = widget.initialStoryData!.location;
     }
-    _determinePosition();
+    if (_useLocation) {
+      _determinePosition();
+    }
   }
 
   @override
@@ -50,13 +54,22 @@ class _AddStoryPageState extends State<AddStoryPage> {
   }
 
   Future<void> _determinePosition() async {
+    if (!_useLocation) {
+      setState(() {
+        _currentLocationName = null;
+        _currentPosition = null;
+        _locationError = null;
+      });
+      return;
+    }
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Layanan lokasi dinonaktifkan. Mohon aktifkan layanan lokasi.'),
-        backgroundColor: AppColors.darkGrey));
+          content: const Text('Location services disabled. Please enable location services.'),
+          backgroundColor: AppColors.darkGrey));
       setState(() {
-        _locationError = 'Layanan lokasi dinonaktifkan.';
+        _locationError = 'Location services disabled.';
       });
       return;
     }
@@ -64,7 +77,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
     final hasPermission = await _permissionService.requestLocationPermission();
     if (!hasPermission) {
       setState(() {
-        _locationError = 'Izin lokasi tidak diberikan.';
+        _locationError = 'Location permission not granted.';
       });
       return;
     }
@@ -83,12 +96,11 @@ class _AddStoryPageState extends State<AddStoryPage> {
       });
       await _getAddressFromLatLng(position);
     } catch (e) {
-      print('Error getting current location: $e');
       setState(() {
-        _locationError = 'Gagal mendapatkan lokasi: ${e.toString()}';
+        _locationError = 'Failed to get location: ${e.toString()}';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mendapatkan lokasi: $e'), backgroundColor: AppColors.redError),
+        SnackBar(content: Text('Failed to get location: $e'), backgroundColor: AppColors.redError),
       );
     } finally {
       setState(() {
@@ -109,9 +121,8 @@ class _AddStoryPageState extends State<AddStoryPage> {
         }
       });
     } catch (e) {
-      print('Error getting address from coordinates: $e');
       setState(() {
-        _currentLocationName = 'Alamat tidak ditemukan';
+        _currentLocationName = 'Address not found';
       });
     }
   }
@@ -141,14 +152,14 @@ class _AddStoryPageState extends State<AddStoryPage> {
   Future<void> _submitStory() async {
     if (_descriptionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deskripsi cerita tidak boleh kosong!'), backgroundColor: AppColors.darkGrey), 
+        SnackBar(content: Text('Story description cannot be empty!'), backgroundColor: AppColors.darkGrey), 
       );
       return;
     }
 
     if (widget.initialStoryData == null && _selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Mohon pilih gambar untuk cerita baru Anda!'), backgroundColor: AppColors.darkGrey), 
+        SnackBar(content: Text('Please select an image for your new story!'), backgroundColor: AppColors.darkGrey), 
       );
       return;
     }
@@ -160,7 +171,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Anda harus login untuk mengunggah cerita.'), backgroundColor: AppColors.darkGrey), 
+        SnackBar(content: Text('You must be logged in to upload a story.'), backgroundColor: AppColors.darkGrey), 
       );
       setState(() {
         _isLoading = false;
@@ -174,47 +185,51 @@ class _AddStoryPageState extends State<AddStoryPage> {
     }
 
     try {
+      final String? locationToSend = _useLocation ? _currentLocationName : null;
+      final double? latitudeToSend = _useLocation ? _currentPosition?.latitude : null;
+      final double? longitudeToSend = _useLocation ? _currentPosition?.longitude : null;
+
+
       if (widget.initialStoryData == null) {
         await _storyService.createStory(
           description: _descriptionController.text,
-          location: _currentLocationName,
+          location: locationToSend, 
           firebaseUid: user.uid,
-          mediaData: base64Image!, 
-          latitude: _currentPosition?.latitude,
-          longitude: _currentPosition?.longitude,
+          mediaData: base64Image!,
+          latitude: latitudeToSend, 
+          longitude: longitudeToSend, 
         );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Cerita berhasil diunggah!'),
-            backgroundColor: AppColors.greenSuccess, 
+            content: const Text('Story uploaded successfully!'),
+            backgroundColor: AppColors.greenSuccess,
           ),
         );
       } else {
         await _storyService.updateStory(
-          storyId: widget.initialStoryData!.id, 
+          storyId: widget.initialStoryData!.id,
           description: _descriptionController.text,
-          location: _currentLocationName,
+          location: locationToSend,
           firebaseUid: user.uid,
-          mediaData: base64Image, 
-          latitude: _currentPosition?.latitude,
-          longitude: _currentPosition?.longitude,
+          mediaData: base64Image,
+          latitude: latitudeToSend,
+          longitude: longitudeToSend,
         );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Cerita berhasil diupdate!'),
-            backgroundColor: AppColors.greenSuccess, 
+            content: const Text('Story updated successfully!'),
+            backgroundColor: AppColors.greenSuccess,
           ),
         );
       }
-      Navigator.of(context).pop(true); 
+      Navigator.of(context).pop(true);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal ${widget.initialStoryData == null ? 'mengunggah' : 'mengupdate'} cerita: ${e.toString()}'),
-          backgroundColor: AppColors.redError, 
+          content: Text('Failed to ${widget.initialStoryData == null ? 'upload' : 'update'} story: ${e.toString()}'),
+          backgroundColor: AppColors.redError,
         ),
       );
-      print('Error submitting story: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -224,8 +239,8 @@ class _AddStoryPageState extends State<AddStoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final String appBarTitle = widget.initialStoryData == null ? 'Tambah Cerita Baru' : 'Edit Cerita';
-    final String submitButtonText = widget.initialStoryData == null ? 'Unggah Cerita' : 'Simpan Perubahan';
+    final String appBarTitle = widget.initialStoryData == null ? 'Add New Story' : 'Edit Story';
+    final String submitButtonText = widget.initialStoryData == null ? 'Upload Story' : 'Save Changes';
      const double imageHeight = 300;
 
     return Scaffold(
@@ -271,7 +286,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
                                     children: [
                                       Icon(Icons.broken_image, size: 50, color: AppColors.darkGrey),
                                       SizedBox(height: 10),
-                                      Text('Gambar tidak bisa dimuat', style: TextStyle(color: AppColors.darkGrey)),
+                                      Text('Image failed to load.', style: TextStyle(color: AppColors.darkGrey)),
                                     ],
                                   ),
                                 ),
@@ -287,7 +302,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
                                 height: 250,
                                 fit: BoxFit.cover,
                               ),
-                              const Text('Pilih atau ambil gambar', style: TextStyle(color: AppColors.greyishBlue)),
+                              const Text('Choose or take image', style: TextStyle(color: AppColors.greyishBlue)),
                             ],
                           ),
                         )),
@@ -300,7 +315,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
                   child: ElevatedButton.icon(
                     onPressed: () => _pickImage(ImageSource.gallery),
                     icon: const Icon(Icons.photo_library),
-                    label: const Text('Galeri'),
+                    label: const Text('Gallery'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.lightBlue,
                       foregroundColor: Colors.white,
@@ -314,7 +329,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
                   child: ElevatedButton.icon(
                     onPressed: () => _pickImage(ImageSource.camera),
                     icon: const Icon(Icons.camera_alt),
-                    label: const Text('Kamera'),
+                    label: const Text('Camera'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.lightBlue,
                       foregroundColor: Colors.white,
@@ -331,7 +346,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
               controller: _descriptionController,
               maxLines: 5,
               decoration: InputDecoration(
-                labelText: 'Deskripsi Cerita',
+                labelText: 'Story Description',
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -345,79 +360,99 @@ class _AddStoryPageState extends State<AddStoryPage> {
               keyboardType: TextInputType.multiline,
             ),
             const SizedBox(height: 20),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, color: AppColors.primaryBlue), 
-                        SizedBox(width: 10),
-                        Text('Lokasi Cerita', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)), 
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (_isLoading && _currentLocationName == null && _locationError == null)
-                      Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)) 
-                    else if (_locationError != null)
-                      Text(
-                        'Error mendapatkan lokasi: $_locationError',
-                        style: TextStyle(color: AppColors.redError, fontSize: 14), 
-                      )
-                    else if (_currentLocationName != null)
-                      Text(
-                        'Lokasi: $_currentLocationName',
-                        style: const TextStyle(fontSize: 16, color: AppColors.greyishBlue), 
-                      )
-                    else
-                      const Text(
-                        'Mendapatkan lokasi...',
-                        style: TextStyle(fontSize: 16, color: AppColors.greyishBlue), 
+           Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Use Location',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkGrey),
+                ),
+                Switch(
+                  value: _useLocation,
+                  onChanged: (bool newValue) {
+                    setState(() {
+                      _useLocation = newValue;
+                      if (_useLocation) {
+                        _determinePosition(); 
+                      } else {
+                        _currentLocationName = null;
+                        _currentPosition = null;
+                        _locationError = null;
+                      }
+                    });
+                  },
+                  activeColor: AppColors.primaryBlue,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            if (_useLocation)
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, color: AppColors.primaryBlue),
+                          SizedBox(width: 10),
+                          Text('Story Location', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryBlue)),
+                          Spacer(), 
+                          IconButton(
+                            icon: Icon(Icons.refresh, color: AppColors.primaryBlue, size: 24),
+                            onPressed: _isLoading ? null : _determinePosition,
+                            tooltip: 'Refresh Location', 
+                            padding: EdgeInsets.zero, 
+                            constraints: BoxConstraints(),
+                            visualDensity: VisualDensity.compact, 
+                          ),
+                        ],
                       ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _determinePosition,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh Lokasi'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.lightBlue, 
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      const SizedBox(height: 10),
+                      if (_isLoading && _currentLocationName == null && _locationError == null)
+                        Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+                      else if (_locationError != null)
+                        Text(
+                          'Error getting location: $_locationError',
+                          style: TextStyle(color: AppColors.redError, fontSize: 14),
+                        )
+                      else if (_currentLocationName != null)
+                        Text(
+                          'Location: $_currentLocationName',
+                          style: const TextStyle(fontSize: 16, color: AppColors.greyishBlue),
+                        )
+                      else
+                        const Text(
+                          'Getting location...',
+                          style: TextStyle(fontSize: 16, color: AppColors.greyishBlue),
                         ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
             const SizedBox(height: 30),
 
             SizedBox(
               height: 50,
-              child: ElevatedButton.icon(
+              child: ElevatedButton(
                 onPressed: _isLoading ? null : _submitStory,
-                icon: _isLoading
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                  child: _isLoading 
                     ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : const Icon(Icons.send, color: Colors.white),
-                label: _isLoading
-                    ? const Text('Memproses...', style: TextStyle(color: Colors.white, fontSize: 18))
                     : Text(submitButtonText, style: const TextStyle(color: Colors.white, fontSize: 18)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue, 
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
               ),
             ),
           ],

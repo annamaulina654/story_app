@@ -5,17 +5,17 @@ class DialogUtils {
     return await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Hapus'),
-        content: const Text('Anda yakin ingin menghapus postingan ini? Tindakan ini tidak dapat dibatalkan.'),
+        title: const Text('Confirm Delete'),
+        content: const Text('Are you sure you want to delete this post? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true), 
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Hapus'),
+            child: const Text('Delete'),
           ),
         ],
       ),

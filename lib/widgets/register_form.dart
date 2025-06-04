@@ -57,7 +57,7 @@ class _RegisterFormState extends State<RegisterForm> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Registrasi berhasil! Silakan cek email Anda untuk verifikasi.'),
+                content: Text('Registration successful! Please check your email for verification.'),
                 backgroundColor: Colors.green,
               ),
             );
@@ -71,13 +71,13 @@ class _RegisterFormState extends State<RegisterForm> {
       } on FirebaseAuthException catch (e) {
         String message;
         if (e.code == 'weak-password') {
-          message = 'Password terlalu lemah.';
+          message = 'Password is too weak.';
         } else if (e.code == 'email-already-in-use') {
-          message = 'Email ini sudah terdaftar.';
+          message = 'This email is already in use.';
         } else if (e.code == 'invalid-email') {
-          message = 'Format email tidak valid.';
+          message = 'Invalid email format.';
         } else {
-          message = 'Terjadi kesalahan saat registrasi: ${e.message}';
+          message = 'An error occurred during registration: ${e.message}';
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -88,13 +88,12 @@ class _RegisterFormState extends State<RegisterForm> {
           );
         }
       } catch (e) {
-        print('Caught unexpected error during registration: $e');
         await _authService.deleteFirebaseUser();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Registrasi gagal. Coba lagi atau gunakan email lain. (${e.toString()})'),
+              content: Text('Failed to register. Please try again or use another email. (${e.toString()})'),
               backgroundColor: Colors.red,
             ),
           );

@@ -16,7 +16,7 @@ class StoryService {
       stories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return stories;
     } else {
-      throw Exception('Gagal memuat cerita: ${response.statusCode} - ${response.body}');
+      throw Exception('Failed to load story: ${response.statusCode} - ${response.body}');
     }
   }
 
@@ -91,7 +91,7 @@ class StoryService {
 
     if (response.statusCode != 200) {
       final errorBody = jsonDecode(response.body);
-      throw Exception('Gagal menghapus postingan: ${errorBody['message'] ?? response.body}');
+      throw Exception('Failed to delete post: ${errorBody['message'] ?? response.body}');
     }
   }
 
@@ -109,7 +109,7 @@ class StoryService {
 
     if (response.statusCode != 200 && response.statusCode != 201 && response.statusCode != 409) {
       final errorBody = jsonDecode(response.body);
-      throw Exception('Gagal mengikuti pengguna: ${errorBody['message'] ?? response.body}');
+      throw Exception('Failed to follow user: ${errorBody['message'] ?? response.body}');
     }
   }
 }

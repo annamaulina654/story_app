@@ -64,7 +64,7 @@ class StoryCard extends StatelessWidget {
                       child: Text(
                         story.location != null && story.location!.isNotEmpty
                             ? story.location!
-                            : 'Lokasi tidak tersedia',
+                            : 'Location not available',
                         style: const TextStyle(fontSize: 12, color: Color(0xFF004D40)),
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -50,7 +50,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Login berhasil dan email terverifikasi!'),
+            content: Text('Login successful!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -62,13 +62,13 @@ class _LoginFormPageState extends State<LoginFormPage> {
     } on FirebaseAuthException catch (e) {
       String message;
       if (e.code == 'user-not-found' || e.code == 'wrong-password') {
-        message = 'Email atau password salah.';
+        message = 'Incorrect email or password.';
       } else if (e.code == 'invalid-email') {
-        message = 'Format email tidak valid.';
+        message = 'Invalid email format.';
       } else if (e.code == 'too-many-requests') {
-        message = 'Terlalu banyak percobaan login. Coba lagi nanti.';
+        message = 'Too many login attempts. Please try again later.';
       } else if (e.code == 'network-request-failed') {
-        message = 'Koneksi internet terputus. Silakan cek jaringan Anda.';
+        message = 'Internet connection lost. Please check your network.';
       } else if (e.code == 'email-not-verified') { 
         message = e.message!;
         if (mounted) {
@@ -77,13 +77,13 @@ class _LoginFormPageState extends State<LoginFormPage> {
               content: Text(message),
               backgroundColor: Colors.orange,
               action: SnackBarAction(
-                label: 'Kirim Ulang Verifikasi',
+                label: 'Resend Verification',
                 onPressed: () async {
                   await _authService.resendEmailVerification();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Email verifikasi telah dikirim ulang.'),
+                        content: Text('Verification email has been resent.'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -97,7 +97,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
         return;
       }
       else {
-        message = 'Terjadi kesalahan saat login: ${e.message}';
+        message = 'An error occurred during login: ${e.message}';
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,11 +108,10 @@ class _LoginFormPageState extends State<LoginFormPage> {
         );
       }
     } catch (e) {
-      print('Caught unexpected error during login: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Terjadi kesalahan tidak terduga: $e'),
+            content: Text('An unexpected error occurred: $e'),
             backgroundColor: Colors.red,
           ),
         );

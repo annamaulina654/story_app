@@ -8,8 +8,6 @@ class FeedItemData {
   final String authorUsername;
   final String? authorAvatarUrl;
   final String authorFirebaseUid;
-  final int likesCount;
-  final int commentsCount;
 
   FeedItemData({
     required this.id,
@@ -21,8 +19,6 @@ class FeedItemData {
     required this.authorUsername,
     this.authorAvatarUrl,
     required this.authorFirebaseUid,
-    this.likesCount = 0,
-    this.commentsCount = 0,
   });
 
   factory FeedItemData.fromJson(Map<String, dynamic> json) {
@@ -44,8 +40,6 @@ class FeedItemData {
       authorUsername: (json['author_username'] as String?) ?? 'Pengguna Tidak Dikenal',
       authorAvatarUrl: (json['author_avatar_url'] as String?) ?? 'assets/images/user-profile.png',
       authorFirebaseUid: (json['author_firebase_uid'] as String?) ?? '',
-      likesCount: json['likes_count'] as int? ?? 0,
-      commentsCount: json['comments_count'] as int? ?? 0,
     );
   }
 }

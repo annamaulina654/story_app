@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:story_app/screens/add_story_page.dart';
+import 'package:story_app/screens/login_page.dart';
 import 'package:story_app/widgets/feed_item.dart';
 import 'package:story_app/models/feed_item_data.dart';
 import 'package:story_app/services/story_service.dart';
@@ -18,12 +19,11 @@ class FeedPage extends StatefulWidget {
 
 class _FeedPageState extends State<FeedPage> {
   var currentIndex = 0;
-
   List<FeedItemData> _feedItems = [];
   bool _isLoading = true;
   String? _errorMessage;
-
   late final StoryService _storyService;
+  final FirebaseAuth _auth = FirebaseAuth.instance; 
 
   @override
   void initState() {
@@ -46,11 +46,62 @@ class _FeedPageState extends State<FeedPage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error koneksi: ${e.toString()}';
+        _errorMessage = 'Connection error: ${e.toString()}';
         _isLoading = false;
       });
-      print('Exception saat fetching cerita: $e');
     }
+  }
+
+  Future<void> _performLogout() async {
+    try {
+      await _auth.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (Route<dynamic> route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to log out: $e'), backgroundColor: AppColors.redError),
+        );
+      }
+    }
+  }
+
+  void _showLogoutConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Logout'),
+          content: const Text('Are you sure you want to log out?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); 
+              },
+              child: const Text(
+                'No',
+                style: TextStyle(color: AppColors.darkGrey), 
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); 
+                _performLogout(); 
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.redError, 
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Yes, Log out'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _editPost(FeedItemData item) {
@@ -67,18 +118,15 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   void _deletePost(FeedItemData item) async {
-    print('Menghapus postingan: ${item.description} (ID: ${item.id})');
-
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Anda harus login untuk menghapus postingan.'), backgroundColor: AppColors.darkGrey), 
+        SnackBar(content: Text('You must be logged in to delete the story.'), backgroundColor: AppColors.darkGrey), 
       );
       return;
     }
 
     bool confirmDelete = await DialogUtils.showConfirmDeleteDialog(context);
-
     if (!confirmDelete) {
       return;
     }
@@ -86,16 +134,15 @@ class _FeedPageState extends State<FeedPage> {
     try {
       await _storyService.deleteStory(item.id.toString(), currentUser.uid);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Postingan berhasil dihapus!'), backgroundColor: AppColors.primaryBlue), 
+        SnackBar(content: Text('Story deleted successfully!'), backgroundColor: AppColors.primaryBlue), 
       );
       setState(() {
         _feedItems.removeWhere((i) => i.id == item.id);
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error menghapus postingan: $e'), backgroundColor: AppColors.darkGrey), 
+        SnackBar(content: Text('Error deleting story: $e'), backgroundColor: AppColors.darkGrey), 
       );
-      print('Exception during delete operation: $e');
     }
   }
 
@@ -103,31 +150,27 @@ class _FeedPageState extends State<FeedPage> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Anda harus login untuk mengikuti pengguna.')),
+        SnackBar(content: Text('You must be logged in to follow users.')),
       );
       return;
     }
     final followerFirebaseUid = currentUser.uid;
 
-    print('Mengikuti pengguna dengan UID: $targetUserFirebaseUid');
-
     try {
       await _storyService.followUser(followerFirebaseUid, targetUserFirebaseUid);
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Berhasil mengikuti pengguna!'), backgroundColor: AppColors.primaryBlue), 
+        SnackBar(content: Text('User followed successfully!'), backgroundColor: AppColors.primaryBlue), 
       );
     } catch (e) {
       if (e.toString().contains('409')) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Anda sudah mengikuti pengguna ini.'), backgroundColor: AppColors.lightBlue), 
+          SnackBar(content: Text('You are already following this user.'), backgroundColor: AppColors.lightBlue), 
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error mengikuti pengguna: ${e.toString()}'), backgroundColor: AppColors.darkGrey), 
+          SnackBar(content: Text('Error following user: ${e.toString()}'), backgroundColor: AppColors.darkGrey), 
         );
       }
-      print('Exception during follow operation: $e');
     }
   }
 
@@ -147,7 +190,7 @@ class _FeedPageState extends State<FeedPage> {
       });
     } else if (index == 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Halaman Profil belum diimplementasikan!'), backgroundColor: AppColors.textGrey), 
+        SnackBar(content: Text('Profile page not yet implemented!'), backgroundColor: AppColors.textGrey), 
       );
     }
   }
@@ -179,6 +222,12 @@ class _FeedPageState extends State<FeedPage> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _fetchStoriesFromBackend,
+            tooltip: 'Refresh Stories', 
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white), 
+            onPressed: _showLogoutConfirmationDialog,
+            tooltip: 'Logout', 
           ),
         ],
       ),
@@ -202,7 +251,7 @@ class _FeedPageState extends State<FeedPage> {
                         ElevatedButton.icon(
                           onPressed: _fetchStoriesFromBackend,
                           icon: const Icon(Icons.refresh),
-                          label: const Text('Coba Lagi'),
+                          label: const Text('Try Again'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.lightBlue, 
                             foregroundColor: Colors.white,
@@ -220,7 +269,7 @@ class _FeedPageState extends State<FeedPage> {
                           Icon(Icons.photo_library, size: 60, color: AppColors.greyishBlue), 
                           const SizedBox(height: 10),
                           Text(
-                            'Tidak ada cerita ditemukan. Jadilah yang pertama berbagi!',
+                            'No stories found. Be the first to share!',
                             style: TextStyle(fontSize: 18, color: AppColors.greyishBlue), 
                             textAlign: TextAlign.center,
                           ),
@@ -233,7 +282,7 @@ class _FeedPageState extends State<FeedPage> {
                               ).then((_) => _fetchStoriesFromBackend());
                             },
                             icon: const Icon(Icons.add_photo_alternate),
-                            label: const Text('Tambahkan Cerita Pertama Anda'),
+                            label: const Text('Add Your First Story'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primaryBlue, 
                               foregroundColor: Colors.white,
@@ -267,8 +316,6 @@ class _FeedPageState extends State<FeedPage> {
                               authorAvatarUrl: story.authorAvatarUrl ?? 'assets/images/default_avatar.png',
                               description: story.description,
                               location: story.location,
-                              likesCount: story.likesCount,
-                              commentsCount: story.commentsCount,
                               createdAt: story.createdAt,
                               updatedAt: story.updatedAt,
                               postId: story.id,

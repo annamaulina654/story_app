@@ -40,13 +40,11 @@ class AuthService {
       );
 
       if (response.statusCode == 201) {
-        print('User data registered in MySQL successfully for UID: $firebaseUid');
       } else {
         final responseBody = jsonDecode(response.body);
         throw Exception('Failed to register user data in MySQL: ${responseBody['message'] ?? 'Unknown error'}');
       }
     } catch (e) {
-      print('Error registering user data in MySQL: $e');
       rethrow; 
     }
   }
@@ -90,25 +88,22 @@ class AuthService {
       if (!user.emailVerified) {
         throw FirebaseAuthException(
           code: 'email-not-verified',
-          message: 'Email Anda (${user.email}) belum diverifikasi. Silakan cek kotak masuk Anda.',
+          message: 'Your email (${user.email}) has not been verified. Please check your inbox.',
         );
       }
 
-      print('Firebase user authenticated and email verified. Fetching profile from MySQL...');
       final response = await http.get(Uri.parse('$_kApiBaseUrl/users/${user.uid}')); 
 
       if (response.statusCode == 200) {
         final userData = jsonDecode(response.body);
-        print('User data from MySQL: $userData');
         return userData; 
       } else {
         final responseBody = jsonDecode(response.body);
         throw Exception('Failed to fetch user profile from MySQL: ${responseBody['message'] ?? response.body}');
       }
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       rethrow; 
     } catch (e) {
-      print('Error in loginUserWithFirebaseAndMySQL: $e');
       rethrow; 
     }
   }

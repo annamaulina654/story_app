@@ -12,10 +12,10 @@ class PermissionService {
     if (status.isGranted) {
       return true;
     } else if (status.isDenied) {
-      _showSnackBar('Izin lokasi ditolak, mohon berikan izin lokasi.');
+      _showSnackBar('Location permission denied, please grant location permission.');
       return false;
     } else if (status.isPermanentlyDenied) {
-      _showSnackBar('Izin lokasi ditolak secara permanen. Mohon buka pengaturan aplikasi.');
+      _showSnackBar('Location permission permanently denied. Please open app settings.');
       openAppSettings();
       return false;
     }
@@ -28,10 +28,10 @@ class PermissionService {
     if (status.isGranted) {
       return true;
     } else if (status.isDenied) {
-      _showSnackBar('Izin kamera ditolak.');
+      _showSnackBar('Camera permission denied.');
       return false;
     } else if (status.isPermanentlyDenied) {
-      _showSnackBar('Izin kamera ditolak secara permanen. Mohon buka pengaturan aplikasi.');
+      _showSnackBar('Camera permission permanently denied. Please open app settings.');
       openAppSettings();
       return false;
     }
@@ -44,10 +44,10 @@ class PermissionService {
     if (status.isGranted) {
       return true;
     } else if (status.isDenied) {
-      _showSnackBar('Izin galeri ditolak.');
+      _showSnackBar('Gallery permission denied.');
       return false;
     } else if (status.isPermanentlyDenied) {
-      _showSnackBar('Izin galeri ditolak secara permanen. Mohon buka pengaturan aplikasi.');
+      _showSnackBar('Gallery permission permanently denied. Please open app settings.');
       openAppSettings();
       return false;
     }
