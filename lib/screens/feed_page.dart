@@ -7,6 +7,9 @@ import 'package:story_app/models/feed_item_data.dart';
 import 'package:story_app/services/story_service.dart';
 import 'package:story_app/utils/dialog_utils.dart';
 import 'package:story_app/constants/app_colors.dart'; 
+import 'package:story_app/screens/profil_page.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 
 const String _kApiBaseUrl = 'http://localhost:3000/api';
 
@@ -32,11 +35,24 @@ class _FeedPageState extends State<FeedPage> {
     _fetchStoriesFromBackend();
   }
 
+  Future<bool> _isInternetAvailable() async {
+  final connectivityResult = await Connectivity().checkConnectivity();
+  return connectivityResult != ConnectivityResult.none;
+  }
   Future<void> _fetchStoriesFromBackend() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
+
+    final hasInternet = await _isInternetAvailable();
+    if (!hasInternet) {
+      setState(() {
+        _errorMessage = 'No internet connection. Please check your network.';
+        _isLoading = false;
+      });
+      return;
+    }
 
     try {
       final List<FeedItemData> fetchedStories = await _storyService.fetchStories();
@@ -49,60 +65,9 @@ class _FeedPageState extends State<FeedPage> {
         _errorMessage = 'Connection error: ${e.toString()}';
         _isLoading = false;
       });
-    }
   }
+}
 
-  Future<void> _performLogout() async {
-    try {
-      await _auth.signOut();
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to log out: $e'), backgroundColor: AppColors.redError),
-        );
-      }
-    }
-  }
-
-  void _showLogoutConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirm Logout'),
-          content: const Text('Are you sure you want to log out?'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); 
-              },
-              child: const Text(
-                'No',
-                style: TextStyle(color: AppColors.darkGrey), 
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(); 
-                _performLogout(); 
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.redError, 
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Yes, Log out'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   void _editPost(FeedItemData item) {
     Navigator.push(
@@ -188,11 +153,14 @@ class _FeedPageState extends State<FeedPage> {
       setState(() {
         currentIndex = 0;
       });
-    } else if (index == 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profile page not yet implemented!'), backgroundColor: AppColors.textGrey), 
+    } 
+    else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ProfilePage()),
       );
     }
+
   }
 
   List<IconData> listOfIcons = [
@@ -224,11 +192,7 @@ class _FeedPageState extends State<FeedPage> {
             onPressed: _fetchStoriesFromBackend,
             tooltip: 'Refresh Stories', 
           ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white), 
-            onPressed: _showLogoutConfirmationDialog,
-            tooltip: 'Logout', 
-          ),
+
         ],
       ),
       body: _isLoading

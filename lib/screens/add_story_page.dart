@@ -9,6 +9,7 @@ import 'package:story_app/models/feed_item_data.dart';
 import 'package:story_app/constants/app_colors.dart';
 import 'package:story_app/services/story_service.dart';
 import 'package:story_app/services/permission_service.dart'; 
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 const String _kApiBaseUrl = 'http://localhost:3000';
 
@@ -31,6 +32,8 @@ class _AddStoryPageState extends State<AddStoryPage> {
   late final StoryService _storyService;
   late final PermissionService _permissionService; 
   bool _useLocation = true; 
+  String? _errorMessage;
+
 
 
   @override
@@ -52,6 +55,10 @@ class _AddStoryPageState extends State<AddStoryPage> {
     _descriptionController.dispose();
     super.dispose();
   }
+Future<bool> _isInternetAvailable() async {
+  final connectivityResult = await Connectivity().checkConnectivity();
+  return connectivityResult != ConnectivityResult.none;
+}
 
   Future<void> _determinePosition() async {
     if (!_useLocation) {
@@ -150,6 +157,17 @@ class _AddStoryPageState extends State<AddStoryPage> {
   }
 
   Future<void> _submitStory() async {
+    final hasInternet = await _isInternetAvailable();
+    if (!hasInternet) {
+      setState(() {
+        _errorMessage = 'No internet connection. Please check your network.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage!), backgroundColor: AppColors.redError),
+      );
+      return;
+    }
+    
     if (_descriptionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Story description cannot be empty!'), backgroundColor: AppColors.darkGrey), 
