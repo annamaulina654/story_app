@@ -1,44 +1,52 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:story_app/screens/register_page.dart';
-import 'package:story_app/widgets/custom_text_form_field.dart'; 
-import 'package:story_app/services/auth_service.dart'; 
-import 'package:story_app/constants/app_colors.dart'; 
+import 'package:story_app/widgets/custom_text_form_field.dart';
+import 'package:story_app/services/auth_service.dart';
+import 'package:story_app/constants/app_colors.dart';
 import 'package:story_app/screens/feed_page.dart';
 
-class LoginFormPage extends StatefulWidget { 
+class LoginFormPage extends StatefulWidget {
   final PageController? controller;
 
   const LoginFormPage({super.key, this.controller});
 
   @override
-  State<LoginFormPage> createState() => _LoginFormPageState(); 
+  State<LoginFormPage> createState() => _LoginFormPageState();
 }
 
-class _LoginFormPageState extends State<LoginFormPage> { 
+class _LoginFormPageState extends State<LoginFormPage> {
   final _formKey = GlobalKey<FormState>();
-  bool _obscurePassword = true; 
+  bool _obscurePassword = true;
   bool _isLoading = false;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final AuthService _authService = AuthService(); 
+  final ValueNotifier<String?> _firebaseEmailError = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> _firebasePasswordError = ValueNotifier<String?>(null);
+
+  final AuthService _authService = AuthService();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _firebaseEmailError.dispose();
+    _firebasePasswordError.dispose();
     super.dispose();
   }
 
   Future<void> _submitLogin() async {
+    _firebaseEmailError.value = null;
+    _firebasePasswordError.value = null;
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     setState(() {
-      _isLoading = true; 
+      _isLoading = true;
     });
 
     try {
@@ -62,14 +70,17 @@ class _LoginFormPageState extends State<LoginFormPage> {
     } on FirebaseAuthException catch (e) {
       String message;
       if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+        _firebaseEmailError.value = 'Incorrect email or password.';
+        _firebasePasswordError.value = 'Incorrect email or password.';
         message = 'Incorrect email or password.';
       } else if (e.code == 'invalid-email') {
+        _firebaseEmailError.value = 'Invalid email format.';
         message = 'Invalid email format.';
       } else if (e.code == 'too-many-requests') {
         message = 'Too many login attempts. Please try again later.';
       } else if (e.code == 'network-request-failed') {
         message = 'Internet connection lost. Please check your network.';
-      } else if (e.code == 'email-not-verified') { 
+      } else if (e.code == 'email-not-verified') {
         message = e.message!;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -93,10 +104,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
             ),
           );
         }
-        setState(() { _isLoading = false; }); 
-        return;
-      }
-      else {
+      } else {
         message = 'An error occurred during login: ${e.message}';
       }
       if (mounted) {
@@ -118,7 +126,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
       }
     } finally {
       setState(() {
-        _isLoading = false; 
+        _isLoading = false;
       });
     }
   }
@@ -146,13 +154,14 @@ class _LoginFormPageState extends State<LoginFormPage> {
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "Log In",
                       style: TextStyle(
-                        color: AppColors.primaryBlue, 
+                        color: AppColors.primaryBlue,
                         fontSize: 27,
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w500,
@@ -163,10 +172,17 @@ class _LoginFormPageState extends State<LoginFormPage> {
                       controller: _emailController,
                       labelText: 'Email',
                       keyboardType: TextInputType.emailAddress,
+                      errorText: _firebaseEmailError,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Email is required';
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Invalid email format';
-                        return null;
+                        if (value == null || value.isEmpty) {
+                          _firebaseEmailError.value = null;
+                          return 'Email is required';
+                        }
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                          _firebaseEmailError.value = null;
+                          return 'Invalid email format';
+                        }
+                        return _firebaseEmailError.value;
                       },
                     ),
                     const SizedBox(height: 30),
@@ -174,10 +190,11 @@ class _LoginFormPageState extends State<LoginFormPage> {
                       controller: _passwordController,
                       labelText: 'Password',
                       obscureText: _obscurePassword,
+                      errorText: _firebasePasswordError,
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                          color: AppColors.greyishBlue, 
+                          color: AppColors.greyishBlue,
                         ),
                         onPressed: () {
                           setState(() {
@@ -186,8 +203,11 @@ class _LoginFormPageState extends State<LoginFormPage> {
                         },
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Password is required';
-                        return null;
+                        if (value == null || value.isEmpty) {
+                          _firebasePasswordError.value = null;
+                          return 'Password is required';
+                        }
+                        return _firebasePasswordError.value;
                       },
                     ),
                     const SizedBox(height: 25),
@@ -200,7 +220,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _submitLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryBlue, 
+                            backgroundColor: AppColors.primaryBlue,
                             elevation: 0,
                           ),
                           child: _isLoading
@@ -226,7 +246,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
                         const Text(
                           "Don’t have an account?",
                           style: TextStyle(
-                            color: AppColors.greyishBlue, 
+                            color: AppColors.greyishBlue,
                             fontSize: 13,
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w500,
@@ -251,7 +271,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
                           child: const Text(
                             'Sign Up',
                             style: TextStyle(
-                              color: AppColors.primaryBlue, 
+                              color: AppColors.primaryBlue,
                               fontSize: 13,
                               fontFamily: 'Poppins',
                               fontWeight: FontWeight.w500,

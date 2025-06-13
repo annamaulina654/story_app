@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:story_app/screens/login_page.dart'; 
-import 'package:firebase_auth/firebase_auth.dart'; 
-import 'package:story_app/widgets/custom_text_form_field.dart'; 
-import 'package:story_app/services/auth_service.dart'; 
-import 'package:story_app/constants/app_colors.dart'; 
+import 'package:story_app/screens/login_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:story_app/widgets/custom_text_form_field.dart';
+import 'package:story_app/services/auth_service.dart';
+import 'package:story_app/constants/app_colors.dart';
 
 class RegisterForm extends StatefulWidget {
   final PageController? controller;
@@ -17,15 +17,18 @@ class RegisterForm extends StatefulWidget {
 class _RegisterFormState extends State<RegisterForm> {
   final _formKey = GlobalKey<FormState>();
   bool rememberMe = true;
-  bool _obscurePassword = true; 
-  bool _obscureConfirmPassword = true; 
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmController = TextEditingController();
 
-  final AuthService _authService = AuthService(); 
+  final ValueNotifier<String?> _firebaseEmailError = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> _firebasePasswordError = ValueNotifier<String?>(null);
+
+  final AuthService _authService = AuthService();
 
   @override
   void dispose() {
@@ -33,71 +36,80 @@ class _RegisterFormState extends State<RegisterForm> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
+
+    _firebaseEmailError.dispose();
+    _firebasePasswordError.dispose();
     super.dispose();
   }
 
   Future<void> _submitRegistration() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        UserCredential userCredential = await _authService.registerUserWithFirebase(
+    _firebaseEmailError.value = null;
+    _firebasePasswordError.value = null;
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    try {
+      UserCredential userCredential = await _authService.registerUserWithFirebase(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      User? user = userCredential.user;
+
+      if (user != null) {
+        await _authService.sendFirebaseEmailVerification(user);
+        await _authService.registerUserInMySQL(
+          firebaseUid: user.uid,
+          username: _nameController.text.trim(),
           email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
         );
 
-        User? user = userCredential.user;
-
-        if (user != null) {
-          await _authService.sendFirebaseEmailVerification(user);
-          await _authService.registerUserInMySQL(
-            firebaseUid: user.uid,
-            username: _nameController.text.trim(),
-            email: _emailController.text.trim(),
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registration successful! Please check your email for verification.'),
+              backgroundColor: Colors.green,
+            ),
           );
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Registration successful! Please check your email for verification.'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            if (widget.controller != null) {
-              widget.controller!.animateToPage(0, duration: const Duration(milliseconds: 500), curve: Curves.ease);
-            } else {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-            }
+          if (widget.controller != null) {
+            widget.controller!.animateToPage(0, duration: const Duration(milliseconds: 500), curve: Curves.ease);
+          } else {
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
           }
         }
-      } on FirebaseAuthException catch (e) {
-        String message;
-        if (e.code == 'weak-password') {
-          message = 'Password is too weak.';
-        } else if (e.code == 'email-already-in-use') {
-          message = 'This email is already in use.';
-        } else if (e.code == 'invalid-email') {
-          message = 'Invalid email format.';
-        } else {
-          message = 'An error occurred during registration: ${e.message}';
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        await _authService.deleteFirebaseUser();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to register. Please try again or use another email. (${e.toString()})'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      }
+    } on FirebaseAuthException catch (e) {
+      String message;
+      if (e.code == 'weak-password') {
+        _firebasePasswordError.value = 'Password is too weak.';
+        message = 'Password is too weak.';
+      } else if (e.code == 'email-already-in-use') {
+        _firebaseEmailError.value = 'This email is already in use.';
+        message = 'This email is already in use.';
+      } else if (e.code == 'invalid-email') {
+        _firebaseEmailError.value = 'Invalid email format.';
+        message = 'Invalid email format.';
+      } else {
+        message = 'An error occurred during registration: ${e.message}';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to register. Please try again or use another email. (${e.toString()})'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -124,13 +136,14 @@ class _RegisterFormState extends State<RegisterForm> {
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "Register",
                       style: TextStyle(
-                        color: AppColors.primaryBlue, 
+                        color: AppColors.primaryBlue,
                         fontSize: 27,
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.w500,
@@ -140,17 +153,29 @@ class _RegisterFormState extends State<RegisterForm> {
                     CustomTextFormField(
                       controller: _nameController,
                       labelText: 'Full Name',
-                      validator: (value) => value == null || value.isEmpty ? 'Full Name is required' : null,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Full Name is required';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 30),
                     CustomTextFormField(
                       controller: _emailController,
                       labelText: 'Email',
                       keyboardType: TextInputType.emailAddress,
+                      errorText: _firebaseEmailError,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Email is required';
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Invalid email format';
-                        return null;
+                        if (value == null || value.isEmpty) {
+                          _firebaseEmailError.value = null;
+                          return 'Email is required';
+                        }
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                          _firebaseEmailError.value = null;
+                          return 'Invalid email format';
+                        }
+                        return _firebaseEmailError.value;
                       },
                     ),
                     const SizedBox(height: 30),
@@ -158,11 +183,22 @@ class _RegisterFormState extends State<RegisterForm> {
                       controller: _passwordController,
                       labelText: 'Password',
                       obscureText: _obscurePassword,
+                      errorText: _firebasePasswordError,
                       suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppColors.greyishBlue), 
+                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppColors.greyishBlue),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
-                      validator: (value) => value == null || value.length < 6 ? 'Password must be at least 6 characters' : null,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          _firebasePasswordError.value = null;
+                          return 'Password is required';
+                        }
+                        if (value.length < 6) {
+                          _firebasePasswordError.value = null;
+                          return 'Password must be at least 6 characters';
+                        }
+                        return _firebasePasswordError.value;
+                      },
                     ),
                     const SizedBox(height: 30),
                     CustomTextFormField(
@@ -170,12 +206,16 @@ class _RegisterFormState extends State<RegisterForm> {
                       labelText: 'Confirm Password',
                       obscureText: _obscureConfirmPassword,
                       suffixIcon: IconButton(
-                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: AppColors.greyishBlue), 
+                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: AppColors.greyishBlue),
                         onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Confirm Password is required';
-                        if (value != _passwordController.text) return 'Passwords do not match';
+                        if (value == null || value.isEmpty) {
+                          return 'Confirm Password is required';
+                        }
+                        if (value != _passwordController.text) {
+                          return 'Passwords do not match';
+                        }
                         return null;
                       },
                     ),
@@ -189,7 +229,7 @@ class _RegisterFormState extends State<RegisterForm> {
                         child: ElevatedButton(
                           onPressed: _submitRegistration,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryBlue, 
+                            backgroundColor: AppColors.primaryBlue,
                             elevation: 0,
                           ),
                           child: const Text(
@@ -211,7 +251,7 @@ class _RegisterFormState extends State<RegisterForm> {
                         const Text(
                           "Already have an account?",
                           style: TextStyle(
-                            color: AppColors.greyishBlue, 
+                            color: AppColors.greyishBlue,
                             fontSize: 13,
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w500,
@@ -222,7 +262,7 @@ class _RegisterFormState extends State<RegisterForm> {
                           onTap: () {
                             if (widget.controller != null) {
                               widget.controller!.animateToPage(
-                                0, 
+                                0,
                                 duration: const Duration(milliseconds: 500),
                                 curve: Curves.ease,
                               );
@@ -236,7 +276,7 @@ class _RegisterFormState extends State<RegisterForm> {
                           child: const Text(
                             "Sign In",
                             style: TextStyle(
-                              color: AppColors.primaryBlue, 
+                              color: AppColors.primaryBlue,
                               fontSize: 13,
                               fontFamily: 'Poppins',
                               fontWeight: FontWeight.w500,

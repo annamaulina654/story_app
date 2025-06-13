@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:story_app/screens/welcome_page.dart'; 
-import 'package:story_app/constants/app_colors.dart'; 
+import 'package:story_app/screens/welcome_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,15 +9,59 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  late Animation<double> _logoFadeAnimation;
+  late Animation<Offset> _logoSlideAnimation;
+  late Animation<double> _logoScaleAnimation;
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
+
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+      ),
+    );
+
+    _logoSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+      ),
+    );
+
+    _logoScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+      ),
+    );
+
+    _animationController.forward();
+
+    Timer(const Duration(milliseconds: 3500), () {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const WelcomePage()),
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -29,14 +72,19 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/images/logo2.png', 
-              width: 300,
-              height: 300,
-            ),
-            const SizedBox(height: 24),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
+            SlideTransition(
+              position: _logoSlideAnimation,
+              child: ScaleTransition(
+                scale: _logoScaleAnimation,
+                child: FadeTransition(
+                  opacity: _logoFadeAnimation,
+                  child: Image.asset(
+                    'assets/images/logo2.png',
+                    width: 300,
+                    height: 300,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

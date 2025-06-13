@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:story_app/main.dart';
 import 'package:story_app/screens/add_story_page.dart';
-import 'package:story_app/screens/login_page.dart';
 import 'package:story_app/widgets/feed_item.dart';
 import 'package:story_app/models/feed_item_data.dart';
 import 'package:story_app/services/story_service.dart';
@@ -9,7 +9,6 @@ import 'package:story_app/utils/dialog_utils.dart';
 import 'package:story_app/constants/app_colors.dart'; 
 import 'package:story_app/screens/profil_page.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-
 
 const String _kApiBaseUrl = 'http://localhost:3000/api';
 
@@ -26,19 +25,19 @@ class _FeedPageState extends State<FeedPage> {
   bool _isLoading = true;
   String? _errorMessage;
   late final StoryService _storyService;
-  final FirebaseAuth _auth = FirebaseAuth.instance; 
 
   @override
   void initState() {
     super.initState();
-    _storyService = StoryService(_kApiBaseUrl);
+    _storyService = StoryService(_kApiBaseUrl, supabase);
     _fetchStoriesFromBackend();
   }
 
   Future<bool> _isInternetAvailable() async {
-  final connectivityResult = await Connectivity().checkConnectivity();
-  return connectivityResult != ConnectivityResult.none;
+    final connectivityResult = await Connectivity().checkConnectivity();
+    return connectivityResult != ConnectivityResult.none;
   }
+
   Future<void> _fetchStoriesFromBackend() async {
     setState(() {
       _isLoading = true;
@@ -65,9 +64,8 @@ class _FeedPageState extends State<FeedPage> {
         _errorMessage = 'Connection error: ${e.toString()}';
         _isLoading = false;
       });
+    }
   }
-}
-
 
   void _editPost(FeedItemData item) {
     Navigator.push(
@@ -97,9 +95,13 @@ class _FeedPageState extends State<FeedPage> {
     }
 
     try {
-      await _storyService.deleteStory(item.id.toString(), currentUser.uid);
+      await _storyService.deleteStory(
+        item.id.toString(),
+        currentUser.uid,
+        mediaUrl: item.photoUrl,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Story deleted successfully!'), backgroundColor: AppColors.primaryBlue), 
+        SnackBar(content: Text('Story deleted successfully!'), backgroundColor: AppColors.greenSuccess), 
       );
       setState(() {
         _feedItems.removeWhere((i) => i.id == item.id);
@@ -160,7 +162,6 @@ class _FeedPageState extends State<FeedPage> {
         MaterialPageRoute(builder: (context) => const ProfilePage()),
       );
     }
-
   }
 
   List<IconData> listOfIcons = [
@@ -184,19 +185,18 @@ class _FeedPageState extends State<FeedPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stories Feed'),
-        backgroundColor: AppColors.primaryBlue, 
+        backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _fetchStoriesFromBackend,
-            tooltip: 'Refresh Stories', 
+            tooltip: 'Refresh Stories',
           ),
-
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)) 
+          ? Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
           : _errorMessage != null
               ? Center(
                   child: Padding(
@@ -204,12 +204,14 @@ class _FeedPageState extends State<FeedPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, color: AppColors.darkGrey, size: 50), 
+                        Icon(Icons.error_outline,
+                            color: AppColors.darkGrey, size: 50),
                         const SizedBox(height: 10),
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.darkGrey, fontSize: 16), 
+                          style:
+                              TextStyle(color: AppColors.darkGrey, fontSize: 16),
                         ),
                         const SizedBox(height: 20),
                         ElevatedButton.icon(
@@ -217,7 +219,7 @@ class _FeedPageState extends State<FeedPage> {
                           icon: const Icon(Icons.refresh),
                           label: const Text('Try Again'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.lightBlue, 
+                            backgroundColor: AppColors.lightBlue,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -230,11 +232,13 @@ class _FeedPageState extends State<FeedPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.photo_library, size: 60, color: AppColors.greyishBlue), 
+                          Icon(Icons.photo_library,
+                              size: 60, color: AppColors.greyishBlue),
                           const SizedBox(height: 10),
                           Text(
                             'No stories found. Be the first to share!',
-                            style: TextStyle(fontSize: 18, color: AppColors.greyishBlue), 
+                            style: TextStyle(
+                                fontSize: 18, color: AppColors.greyishBlue),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 20),
@@ -242,13 +246,14 @@ class _FeedPageState extends State<FeedPage> {
                             onPressed: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const AddStoryPage()),
+                                MaterialPageRoute(
+                                    builder: (context) => const AddStoryPage()),
                               ).then((_) => _fetchStoriesFromBackend());
                             },
                             icon: const Icon(Icons.add_photo_alternate),
                             label: const Text('Add Your First Story'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryBlue, 
+                              backgroundColor: AppColors.primaryBlue,
                               foregroundColor: Colors.white,
                             ),
                           ),
@@ -277,7 +282,8 @@ class _FeedPageState extends State<FeedPage> {
                             return FeedItem(
                               imageUrl: story.photoUrl,
                               authorUsername: story.authorUsername,
-                              authorAvatarUrl: story.authorAvatarUrl ?? 'assets/images/default_avatar.png',
+                              authorAvatarUrl: story.authorAvatarUrl ??
+                                  'assets/images/default_avatar.png',
                               description: story.description,
                               location: story.location,
                               createdAt: story.createdAt,
@@ -287,7 +293,8 @@ class _FeedPageState extends State<FeedPage> {
                               currentUserId: currentUserId,
                               onEdit: () => _editPost(story),
                               onDelete: () => _deletePost(story),
-                              onFollow: () => _followUser(story.authorFirebaseUid),
+                              onFollow: () =>
+                                  _followUser(story.authorFirebaseUid),
                             );
                           },
                         );
@@ -297,14 +304,14 @@ class _FeedPageState extends State<FeedPage> {
         margin: const EdgeInsets.all(20),
         height: size.width * .155,
         decoration: BoxDecoration(
-          gradient: LinearGradient( 
+          gradient: LinearGradient(
             colors: [AppColors.primaryBlue, AppColors.lightBlue],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryBlue.withOpacity(0.3), 
+              color: AppColors.primaryBlue.withOpacity(0.3),
               blurRadius: 30,
               offset: const Offset(0, 10),
             ),
@@ -353,7 +360,8 @@ class _FeedPageState extends State<FeedPage> {
                       color: isSelected
                           ? Colors.white
                           : Colors.white.withOpacity(0.7),
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                   SizedBox(height: size.width * .01),
@@ -363,6 +371,6 @@ class _FeedPageState extends State<FeedPage> {
           }),
         ),
       ),
-    );
+    );  
   }
 }
