@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:story_app/main.dart';
 import 'package:story_app/screens/add_story_page.dart';
+import 'package:story_app/screens/edit_profile_page.dart';
 import 'package:story_app/screens/feed_page.dart';
 import 'package:story_app/screens/login_page.dart';
 import 'package:story_app/constants/app_colors.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:story_app/models/user_data.dart';
+import 'package:story_app/services/profil_service.dart';
+import 'package:story_app/screens/user_story_feed_page.dart'; 
+import 'package:story_app/screens/follows_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,42 +21,61 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  late final ProfileService _profileService;
+  UserProfile? _userProfile;
 
   int currentIndex = 2;
-  bool _isLoading = false;
+  bool _isLoading = true;
   String? _profileErrorMessage;
 
   @override
   void initState() {
     super.initState();
-    _checkInitialConnectivity();
+    _profileService = ProfileService(supabase);
+    _fetchProfileData();
   }
 
-  Future<bool> _isInternetAvailable() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    return connectivityResult != ConnectivityResult.none;
-  }
-
-  Future<void> _checkInitialConnectivity() async {
+  Future<void> _fetchProfileData() async {
     setState(() {
       _isLoading = true;
       _profileErrorMessage = null;
     });
 
-    final hasInternet = await _isInternetAvailable();
-    if (!hasInternet) {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
       setState(() {
         _profileErrorMessage = 'No internet connection. Please check your network.';
         _isLoading = false;
       });
-    } else {
+      return;
+    }
+
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
       setState(() {
+        _profileErrorMessage = 'User not logged in.';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final profile = await _profileService.fetchUserProfile(currentUser.uid);
+      setState(() {
+        _userProfile = profile;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _profileErrorMessage = 'Failed to load profile: ${e.toString()}';
         _isLoading = false;
       });
     }
   }
 
   void _onItemTapped(int index) async {
+    if (index == currentIndex) return;
+
     setState(() {
       currentIndex = index;
     });
@@ -73,14 +98,16 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _performLogout() async {
-    final hasInternet = await _isInternetAvailable();
+    final hasInternet = await Connectivity().checkConnectivity() != ConnectivityResult.none;
     if (!hasInternet) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('No internet connection. Cannot log out.'),
-          backgroundColor: AppColors.redError,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('No internet connection. Cannot log out.'),
+            backgroundColor: AppColors.redError,
+          ),
+        );
+      }
       return;
     }
 
@@ -105,16 +132,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showLogoutConfirmationDialog() {
-    if (_profileErrorMessage != null || _isLoading) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Cannot log out: No internet connection or page is loading.'),
-          backgroundColor: AppColors.darkGrey,
-        ),
-      );
-      return;
-    }
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -123,10 +140,7 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'No',
-              style: TextStyle(color: AppColors.darkGrey),
-            ),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.darkGrey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -159,162 +173,262 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
-    final currentUser = _auth.currentUser;
-    String username = currentUser?.email?.split('@')[0] ?? 'Guest';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(_userProfile?.username ?? 'Profile'),
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
         actions: [
+          if (_userProfile != null)
+            IconButton(
+              icon: const Icon(Icons.edit, color: Colors.white),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EditProfilePage(userProfile: _userProfile!)),
+                );
+                if (result == true) {
+                  _fetchProfileData();
+                }
+              },
+              tooltip: 'Edit Profile',
+            ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: (_profileErrorMessage != null || _isLoading) ? null : _showLogoutConfirmationDialog,
+            onPressed: _showLogoutConfirmationDialog,
             tooltip: 'Logout',
           ),
         ],
       ),
-      body: _isLoading && _profileErrorMessage == null
+      body: _isLoading
           ? Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
           : _profileErrorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, color: AppColors.darkGrey, size: 50),
-                        const SizedBox(height: 10),
-                        Text(
-                          _profileErrorMessage!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            _checkInitialConnectivity();
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Try Again'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.lightBlue,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircleAvatar(
-                        radius: 60,
-                        backgroundImage: AssetImage('assets/images/user-profile.png'),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        username,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        currentUser?.email ?? 'Guest',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          'A storyteller with a love for quiet moments and bold dreams.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black87,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.all(20),
-        height: size.width * .155,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primaryBlue, AppColors.lightBlue],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryBlue.withOpacity(0.3),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
+              ? _buildErrorWidget()
+              : _buildProfileContent(),
+      bottomNavigationBar: _buildBottomNavBar(size),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: AppColors.darkGrey, size: 50),
+            const SizedBox(height: 10),
+            Text(
+              _profileErrorMessage!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _fetchProfileData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.lightBlue,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
-          borderRadius: BorderRadius.circular(50),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(listOfIcons.length, (index) {
-            bool isSelected = index == currentIndex;
-            return InkWell(
-              onTap: () => _onItemTapped(index),
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      ),
+    );
+  }
+
+  Widget _buildProfileContent() {
+    if (_userProfile == null) {
+      return _buildErrorWidget();
+    }
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) {
+        return [
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                CircleAvatar(
+                  radius: 60,
+                  backgroundImage: _userProfile!.profileImageUrl != null && _userProfile!.profileImageUrl!.isNotEmpty
+                      ? NetworkImage(_userProfile!.profileImageUrl!)
+                      : const AssetImage('assets/images/user-profile.png') as ImageProvider,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _userProfile!.fullName ?? _userProfile!.username,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '@${_userProfile!.username}',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    _userProfile!.bio ?? 'No bio yet.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 1500),
-                    curve: Curves.fastLinearToSlowEaseIn,
-                    margin: EdgeInsets.only(
-                      bottom: isSelected ? 0 : size.width * .029,
-                    ),
-                    width: size.width * .128,
-                    height: isSelected ? size.width * .014 : 0,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.vertical(
-                        bottom: Radius.circular(10),
-                      ),
-                    ),
+                  _buildStatColumn('Stories', _userProfile!.storyCount),
+                  const SizedBox(width: 40),
+                  _buildStatColumn(
+                    'Followers',
+                    _userProfile!.followerCount,
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
+                        userFirebaseUid: _userProfile!.firebaseUid,
+                        username: _userProfile!.username,
+                        initialTabIndex: 0, 
+                      )));
+                    },
                   ),
-                  Icon(
-                    listOfIcons[index],
-                    size: size.width * .076,
-                    color: isSelected
-                        ? Colors.white
-                        : Colors.white.withOpacity(0.7),
+                  const SizedBox(width: 40),
+                  _buildStatColumn(
+                    'Following',
+                    _userProfile!.followingCount,
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
+                        userFirebaseUid: _userProfile!.firebaseUid,
+                        username: _userProfile!.username,
+                        initialTabIndex: 1, 
+                      )));
+                    },
                   ),
-                  Text(
-                    listOfLabels[index],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isSelected
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.7),
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                  SizedBox(height: size.width * .01),
                 ],
               ),
-            );
-          }),
+                const SizedBox(height: 10),
+                const Divider(),
+              ],
+            ),
+          ),
+        ];
+      },
+      body: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
         ),
+        itemCount: _userProfile!.stories.length,
+        itemBuilder: (context, index) {
+          final story = _userProfile!.stories[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserStoryFeedPage(
+                    stories: _userProfile!.stories, 
+                    initialIndex: index,            
+                  ),
+                ),
+              );
+            },
+            child: Image.network(
+              story.photoUrl, 
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(String label, int count, {VoidCallback? onTap}) {
+    return GestureDetector( 
+      onTap: onTap, 
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            count.toString(),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavBar(Size size) {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      height: size.width * .155,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primaryBlue, AppColors.lightBlue],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryBlue.withOpacity(0.3),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(listOfIcons.length, (index) {
+          bool isSelected = index == currentIndex;
+          return InkWell(
+            onTap: () => _onItemTapped(index),
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 1500),
+                  curve: Curves.fastLinearToSlowEaseIn,
+                  margin: EdgeInsets.only(
+                    bottom: isSelected ? 0 : size.width * .029,
+                  ),
+                  width: size.width * .128,
+                  height: isSelected ? size.width * .014 : 0,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(10),
+                    ),
+                  ),
+                ),
+                Icon(
+                  listOfIcons[index],
+                  size: size.width * .076,
+                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.7),
+                ),
+                Text(
+                  listOfLabels[index],
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isSelected ? Colors.white : Colors.white.withOpacity(0.7),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                SizedBox(height: size.width * .01),
+              ],
+            ),
+          );
+        }),
       ),
     );
   }
