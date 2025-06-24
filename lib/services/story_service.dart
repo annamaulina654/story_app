@@ -212,4 +212,36 @@ class StoryService {
       throw Exception('Failed to follow user: ${error['message'] ?? response.body}');
     }
   }
+
+  Future<Map<String, dynamic>> getUserProfileData(String firebaseUid) async {
+    final url = Uri.parse('$_kApiBaseUrl/stories/profile/$firebaseUid');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['error'] == true) {
+          throw Exception('Backend error: ${data['message']}');
+        }
+
+        final stories = (data['stories'] as List)
+            .map((storyJson) => FeedItemData.fromJson(storyJson))
+            .toList();
+
+        return {
+          'stories': stories,
+          'storyCount': data['storyCount'],
+          'followersCount': data['followersCount'],
+          'followingCount': data['followingCount'],
+        };
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception('Failed to load user profile: ${errorBody['message'] ?? 'Server returned status code ${response.statusCode}'}');
+      }
+    } catch (e) {
+      throw Exception('Failed to connect or process data: ${e.toString()}');
+    }
+  }
 }
