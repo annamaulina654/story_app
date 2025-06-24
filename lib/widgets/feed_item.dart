@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart'; 
 import 'package:story_app/constants/app_colors.dart'; 
 import 'package:story_app/providers/follow_status_provider.dart'; 
+import 'comment_page.dart';
 
 class FeedItem extends StatefulWidget {
   final String imageUrl;
@@ -472,7 +473,16 @@ class _FeedItemState extends State<FeedItem> {
                                     constraints: const BoxConstraints(), 
                                     visualDensity: VisualDensity.compact, 
                                     icon: const Icon(Icons.comment, size: 24, color: AppColors.lightBlue), 
-                                    onPressed: () => _addComment(context),
+                                    // onPressed: () => _addComment(context),
+                                    onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => CommentPage(postId: widget.postId),
+                                      ),
+                                    );
+                                  },
+
                                   ),
                                   const SizedBox(width: 6), 
                                   Text(
