@@ -251,12 +251,16 @@ class _ProfilePageState extends State<ProfilePage> {
               ]
             : [],
       ),
-      body: _isLoading
+      body: SafeArea(
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
           : _errorMessage != null
               ? _buildErrorWidget()
-              : _buildProfileContent(),
-               bottomNavigationBar: isCurrentUserProfile ? _buildBottomNavBar(MediaQuery.of(context).size) : null,
+              : SingleChildScrollView(
+                  child: _buildProfileContent(),
+                ),
+      ),
+      bottomNavigationBar: isCurrentUserProfile ? _buildBottomNavBar(MediaQuery.of(context).size) : null,
     );
   }
 
@@ -297,126 +301,121 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_userProfile == null) {
       return _buildErrorWidget();
     }
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) {
-        return [
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                CircleAvatar(
-                  radius: 60,
-                  backgroundImage: _userProfile!.profileImageUrl != null && _userProfile!.profileImageUrl!.isNotEmpty
-                      ? NetworkImage(_userProfile!.profileImageUrl!)
-                      : const AssetImage('assets/images/user-profile.png') as ImageProvider,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _userProfile!.fullName ?? _userProfile!.username,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '@${_userProfile!.username}',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    _userProfile!.bio ?? 'No bio yet.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40.0),
-                  child: isCurrentUserProfile
-                      ? ElevatedButton(
-                          onPressed: () async {
-                            if (_userProfile == null) return;
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => EditProfilePage(userProfile: _userProfile!)),
-                            );
-                            if (result == true) {
-                              _fetchProfileData(_userProfile!.firebaseUid);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF8CB0FF),
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(45),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text('Edit Profile'),
-                        )
-                      : _FollowButton(
-                          profileOwnerUid: _userProfile!.firebaseUid,
-                          loggedInUserUid: _auth.currentUser!.uid,
-                        ),
-                ),
-                const SizedBox(height: 20),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildStatColumn('Stories', _userProfile!.storyCount),
-                    const SizedBox(width: 40),
-                    _buildStatColumn(
-                      'Followers',
-                      _userProfile!.followerCount,
-                      onTap: () => _navigateToFollowsPage(0),
-                    ),
-                    const SizedBox(width: 40),
-                    _buildStatColumn(
-                      'Following',
-                      _userProfile!.followingCount,
-                      onTap: () => _navigateToFollowsPage(1),
-
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Divider(),
-              ],
-            ),
-          ),
-        ];
-      },
-      body: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        CircleAvatar(
+          radius: 60,
+          backgroundImage: _userProfile!.profileImageUrl != null && _userProfile!.profileImageUrl!.isNotEmpty
+              ? NetworkImage(_userProfile!.profileImageUrl!)
+              : const AssetImage('assets/images/user-profile.png') as ImageProvider,
         ),
-        itemCount: _userProfile!.stories.length,
-        itemBuilder: (context, index) {
-          final story = _userProfile!.stories[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => UserStoryFeedPage(
-                    stories: _userProfile!.stories, 
-                    initialIndex: index,            
+        const SizedBox(height: 10),
+        Text(
+          _userProfile!.fullName ?? _userProfile!.username,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          '@${_userProfile!.username}',
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            _userProfile!.bio ?? 'No bio yet.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40.0),
+          child: isCurrentUserProfile
+              ? ElevatedButton(
+                  onPressed: () async {
+                    if (_userProfile == null) return;
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => EditProfilePage(userProfile: _userProfile!)),
+                    );
+                    if (result == true) {
+                      _fetchProfileData(_userProfile!.firebaseUid);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF8CB0FF),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(45),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
                   ),
+                  child: const Text('Edit Profile'),
+                )
+              : _FollowButton(
+                  profileOwnerUid: _userProfile!.firebaseUid,
+                  loggedInUserUid: _auth.currentUser!.uid,
                 ),
-              );
-            },
-            child: Image.network(
-              story.photoUrl, 
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+        ),
+        const SizedBox(height: 20),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildStatColumn('Stories', _userProfile!.storyCount),
+            const SizedBox(width: 40),
+            _buildStatColumn(
+              'Followers',
+              _userProfile!.followerCount,
+              onTap: () => _navigateToFollowsPage(0),
             ),
-          );
-        },
-      ),
+            const SizedBox(width: 40),
+            _buildStatColumn(
+              'Following',
+              _userProfile!.followingCount,
+              onTap: () => _navigateToFollowsPage(1),
+
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Divider(),
+      
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+          ),
+          itemCount: _userProfile!.stories.length,
+          itemBuilder: (context, index) {
+            final story = _userProfile!.stories[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => UserStoryFeedPage(
+                      stories: _userProfile!.stories, 
+                      initialIndex: index,            
+                    ),
+                  ),
+                );
+              },
+              child: Image.network(
+                story.photoUrl, 
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
