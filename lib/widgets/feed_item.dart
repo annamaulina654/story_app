@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:provider/provider.dart'; 
 import 'package:story_app/constants/app_colors.dart'; 
-import 'package:story_app/providers/follow_status_provider.dart'; 
+import 'package:story_app/providers/follow_status_provider.dart';
+import 'package:story_app/screens/profil_page.dart'; 
 import 'comment_page.dart';
 
 class FeedItem extends StatefulWidget {
@@ -268,38 +269,51 @@ class _FeedItemState extends State<FeedItem> {
           ),
           shadowColor: AppColors.primaryBlue.withOpacity(0.2),
           margin: EdgeInsets.zero,
-          child: InkWell(
-            onTap: () {
-            },
-            borderRadius: BorderRadius.circular(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start, 
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 8.0),
                   child: Row(
-                    children: [
-                      CircleAvatar(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfilePage(
+                                userFirebaseUid: widget.authorFirebaseUid),
+                          ),
+                        );
+                      },
+                      child: CircleAvatar(
                         radius: 20,
-                        backgroundColor: const Color.fromARGB(255, 246, 246, 247),
-                        backgroundImage: widget.authorAvatarUrl.startsWith('http') || widget.authorAvatarUrl.startsWith('https')
+                        backgroundColor:
+                            const Color.fromARGB(255, 246, 246, 247),
+                        backgroundImage: widget.authorAvatarUrl
+                                    .startsWith('http') ||
+                                widget.authorAvatarUrl.startsWith('https')
                             ? NetworkImage(widget.authorAvatarUrl)
-                            : AssetImage(widget.authorAvatarUrl) as ImageProvider,
-                        onBackgroundImageError: (exception, stackTrace) {
-                        },
-                        child: (widget.authorAvatarUrl.isEmpty ||
-                                (!widget.authorAvatarUrl.startsWith('http') &&
-                                    !widget.authorAvatarUrl.startsWith('https') &&
-                                    !widget.authorAvatarUrl.startsWith('assets')))
-                            ? const Icon(Icons.person, color: Colors.white, size: 24)
-                            : null,
+                            : AssetImage(widget.authorAvatarUrl)
+                                as ImageProvider,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProfilePage(
+                                      userFirebaseUid: widget.authorFirebaseUid),
+                                ),
+                              );
+                            },
+                            child: Text(
                               widget.authorUsername,
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
@@ -310,77 +324,83 @@ class _FeedItemState extends State<FeedItem> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (widget.location != null && widget.location!.isNotEmpty)
-                              Text(
-                                widget.location!,
-                                style: const TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 11,
-                                  color: AppColors.greyishBlue,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                          ),
+                          if (widget.location != null &&
+                              widget.location!.isNotEmpty)
+                            Text(
+                              widget.location!,
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: AppColors.greyishBlue,
                               ),
-                          ],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (showFollowButton)
+                      ElevatedButton(
+                        onPressed: _toggleFollow,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isFollowing
+                              ? AppColors.greyishBlue
+                              : AppColors.primaryBlue,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(80, 30),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          isFollowing ? 'Following' : 'Follow',
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                       ),
-                      if (showFollowButton)
-                        ElevatedButton(
-                          onPressed: _toggleFollow,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isFollowing ? AppColors.greyishBlue : AppColors.primaryBlue,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(80, 30),
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(5),
+                    if (isMyPost)
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_horiz,
+                            color: AppColors.greyishBlue, size: 24),
+                        onSelected: (String result) {
+                          if (result == 'edit' && widget.onEdit != null) {
+                            widget.onEdit!();
+                          } else if (result == 'delete' &&
+                              widget.onDelete != null) {
+                            widget.onDelete!();
+                          }
+                        },
+                        itemBuilder: (BuildContext context) {
+                          return <PopupMenuEntry<String>>[
+                            const PopupMenuItem<String>(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 20),
+                                  SizedBox(width: 8),
+                                  Text('Edit'),
+                                ],
+                              ),
                             ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            isFollowing ? 'Following' : 'Follow',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      if (isMyPost)
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_horiz, color: AppColors.greyishBlue, size: 24),
-                          onSelected: (String result) {
-                            if (result == 'edit' && widget.onEdit != null) {
-                              widget.onEdit!();
-                            } else if (result == 'delete' && widget.onDelete != null) {
-                              widget.onDelete!();
-                            }
-                          },
-                          itemBuilder: (BuildContext context) {
-                            return <PopupMenuEntry<String>>[
-                              const PopupMenuItem<String>(
-                                value: 'edit',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit, size: 20),
-                                    SizedBox(width: 8),
-                                    Text('Edit'),
-                                  ],
-                                ),
+                            const PopupMenuItem<String>(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, size: 20),
+                                  SizedBox(width: 8),
+                                  Text('Delete'),
+                                ],
                               ),
-                              const PopupMenuItem<String>(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.delete, size: 20),
-                                    SizedBox(width: 8),
-                                    Text('Delete'),
-                                  ],
-                                ),
-                              ),
-                            ];
-                          },
-                        ),
-                    ],
+                            ),
+                          ];
+                        },
+                      ),
+                  ],
                   ),
                 ),
-
                 Expanded(
                   flex: 3,
                   child: ClipRRect(
@@ -531,7 +551,6 @@ class _FeedItemState extends State<FeedItem> {
                 ),
               ],
             ),
-          ),
         );
       },
     );

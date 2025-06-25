@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:story_app/constants/app_colors.dart';
 import 'package:story_app/models/follow_user_data.dart';
+import 'package:story_app/screens/profil_page.dart';
 import 'package:story_app/services/follow_service.dart';
 
 class FollowsPage extends StatefulWidget {
@@ -129,11 +130,16 @@ class _UserListTileState extends State<_UserListTile> {
           followedUid: widget.user.firebaseUid,
         );
       }
-      setState(() { _isFollowing = !_isFollowing; });
+      if (mounted) {
+        setState(() { _isFollowing = !_isFollowing; });
+      }
     } catch (e) {
       // Handle error jika perlu
+      print("Error toggling follow: $e");
     } finally {
-      setState(() { _isLoading = false; });
+      if (mounted) {
+        setState(() { _isLoading = false; });
+      }
     }
   }
 
@@ -141,29 +147,42 @@ class _UserListTileState extends State<_UserListTile> {
   Widget build(BuildContext context) {
     final bool isCurrentUser = widget.user.firebaseUid == _currentUserUid;
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundImage: widget.user.profileImageUrl != null && widget.user.profileImageUrl!.isNotEmpty
-            ? NetworkImage(widget.user.profileImageUrl!)
-            : const AssetImage('assets/images/user-profile.png') as ImageProvider,
-      ),
-      title: Text(widget.user.username),
-      subtitle: widget.user.fullName != null ? Text(widget.user.fullName!) : null,
-      trailing: isCurrentUser
-          ? null 
-          : SizedBox(
-              width: 100,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _toggleFollow,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isFollowing ? Colors.grey : AppColors.primaryBlue,
-                  foregroundColor: Colors.white,
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfilePage(userFirebaseUid: widget.user.firebaseUid),
+          ),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundImage: widget.user.profileImageUrl != null && widget.user.profileImageUrl!.isNotEmpty
+                ? NetworkImage(widget.user.profileImageUrl!)
+                : const AssetImage('assets/images/user-profile.png') as ImageProvider,
+          ),
+          title: Text(widget.user.username, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: widget.user.fullName != null ? Text(widget.user.fullName!) : null,
+          trailing: isCurrentUser
+              ? null 
+              : SizedBox(
+                  width: 100,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _toggleFollow,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isFollowing ? Colors.grey[300] : AppColors.primaryBlue,
+                      foregroundColor: _isFollowing ? Colors.black87 : Colors.white,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2,))
+                        : Text(_isFollowing ? 'Following' : 'Follow'),
+                  ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2,))
-                    : Text(_isFollowing ? 'Following' : 'Follow'),
-              ),
-            ),
+        ),
+      ),
     );
   }
 }

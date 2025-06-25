@@ -8,12 +8,15 @@ import 'package:story_app/screens/login_page.dart';
 import 'package:story_app/constants/app_colors.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:story_app/models/user_data.dart';
+import 'package:story_app/services/follow_service.dart';
 import 'package:story_app/services/profil_service.dart';
 import 'package:story_app/screens/user_story_feed_page.dart'; 
 import 'package:story_app/screens/follows_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final String? userFirebaseUid;
+
+  const ProfilePage({super.key, this.userFirebaseUid});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -26,50 +29,56 @@ class _ProfilePageState extends State<ProfilePage> {
 
   int currentIndex = 2;
   bool _isLoading = true;
-  String? _profileErrorMessage;
+  String? _errorMessage;
+
+  bool get isCurrentUserProfile => widget.userFirebaseUid == null || widget.userFirebaseUid == _auth.currentUser?.uid;
 
   @override
   void initState() {
     super.initState();
     _profileService = ProfileService(supabase);
-    _fetchProfileData();
+    final targetUid = widget.userFirebaseUid ?? _auth.currentUser?.uid;
+    if (targetUid != null) {
+      _fetchProfileData(targetUid);
+    } else {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "User tidak ditemukan.";
+      });
+    }
   }
 
-  Future<void> _fetchProfileData() async {
+  Future<void> _fetchProfileData(String uid) async {
     setState(() {
       _isLoading = true;
-      _profileErrorMessage = null;
+      _errorMessage = null;
     });
 
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
       setState(() {
-        _profileErrorMessage = 'No internet connection. Please check your network.';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      setState(() {
-        _profileErrorMessage = 'User not logged in.';
+        _errorMessage = 'No internet connection.';
         _isLoading = false;
       });
       return;
     }
 
     try {
-      final profile = await _profileService.fetchUserProfile(currentUser.uid);
-      setState(() {
-        _userProfile = profile;
-        _isLoading = false;
-      });
+      final profile = await _profileService.fetchUserProfile(uid); // BENAR
+      
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _profileErrorMessage = 'Failed to load profile: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load profile: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -169,44 +178,28 @@ class _ProfilePageState extends State<ProfilePage> {
     'Add Story',
     'Profile',
   ];
-
   @override
   Widget build(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(_userProfile?.username ?? 'Profile'),
+        title: Text(_userProfile?.username ?? (isCurrentUserProfile ? 'Profile' : '')),
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: Colors.white,
-        actions: [
-          if (_userProfile != null)
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.white),
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => EditProfilePage(userProfile: _userProfile!)),
-                );
-                if (result == true) {
-                  _fetchProfileData();
-                }
-              },
-              tooltip: 'Edit Profile',
-            ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _showLogoutConfirmationDialog,
-            tooltip: 'Logout',
-          ),
-        ],
+        actions: isCurrentUserProfile
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.white),
+                  onPressed: _showLogoutConfirmationDialog,
+                ),
+              ]
+            : [],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-          : _profileErrorMessage != null
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
               ? _buildErrorWidget()
               : _buildProfileContent(),
-      bottomNavigationBar: _buildBottomNavBar(size),
+               bottomNavigationBar: isCurrentUserProfile ? _buildBottomNavBar(MediaQuery.of(context).size) : null,
     );
   }
 
@@ -217,16 +210,19 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, color: AppColors.darkGrey, size: 50),
+            const Icon(Icons.error_outline, color: AppColors.darkGrey, size: 50),
             const SizedBox(height: 10),
             Text(
-              _profileErrorMessage!,
+              _errorMessage!,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
+              style: const TextStyle(color: AppColors.darkGrey, fontSize: 16),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: _fetchProfileData,
+              onPressed: () {
+                final targetUid = widget.userFirebaseUid ?? _auth.currentUser!.uid;
+                _fetchProfileData(targetUid);
+              },
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
@@ -276,36 +272,65 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildStatColumn('Stories', _userProfile!.storyCount),
-                  const SizedBox(width: 40),
-                  _buildStatColumn(
-                    'Followers',
-                    _userProfile!.followerCount,
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
-                        userFirebaseUid: _userProfile!.firebaseUid,
-                        username: _userProfile!.username,
-                        initialTabIndex: 0, 
-                      )));
-                    },
-                  ),
-                  const SizedBox(width: 40),
-                  _buildStatColumn(
-                    'Following',
-                    _userProfile!.followingCount,
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
-                        userFirebaseUid: _userProfile!.firebaseUid,
-                        username: _userProfile!.username,
-                        initialTabIndex: 1, 
-                      )));
-                    },
-                  ),
-                ],
-              ),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                  child: isCurrentUserProfile
+                      ? ElevatedButton(
+                          onPressed: () async {
+                            if (_userProfile == null) return;
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => EditProfilePage(userProfile: _userProfile!)),
+                            );
+                            if (result == true) {
+                              _fetchProfileData(_userProfile!.firebaseUid);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            foregroundColor: Colors.black87,
+                            minimumSize: const Size.fromHeight(40),
+                          ),
+                          child: const Text('Edit Profil'),
+                        )
+                      : _FollowButton( 
+                          profileOwnerUid: _userProfile!.firebaseUid,
+                          loggedInUserUid: _auth.currentUser!.uid,
+                        ),
+                ),
+                const SizedBox(height: 20),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildStatColumn('Stories', _userProfile!.storyCount),
+                    const SizedBox(width: 40),
+                    _buildStatColumn(
+                      'Followers',
+                      _userProfile!.followerCount,
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
+                          userFirebaseUid: _userProfile!.firebaseUid,
+                          username: _userProfile!.username,
+                          initialTabIndex: 0,
+                        )));
+                      },
+                    ),
+                    const SizedBox(width: 40),
+                    _buildStatColumn(
+                      'Following',
+                      _userProfile!.followingCount,
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
+                          userFirebaseUid: _userProfile!.firebaseUid,
+                          username: _userProfile!.username,
+                          initialTabIndex: 1,
+                        )));
+                      },
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 10),
                 const Divider(),
               ],
@@ -345,7 +370,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatColumn(String label, int count, {VoidCallback? onTap}) {
+    Widget _buildStatColumn(String label, int count, {VoidCallback? onTap}) {
     return GestureDetector( 
       onTap: onTap, 
       child: Column(
@@ -430,6 +455,99 @@ class _ProfilePageState extends State<ProfilePage> {
           );
         }),
       ),
+    );
+  }
+}
+
+class _FollowButton extends StatefulWidget {
+  final String profileOwnerUid;
+  final String loggedInUserUid;
+
+  const _FollowButton({
+    required this.profileOwnerUid,
+    required this.loggedInUserUid,
+  });
+
+  @override
+  State<_FollowButton> createState() => _FollowButtonState();
+}
+
+class _FollowButtonState extends State<_FollowButton> {
+  final FollowService _followService = FollowService(baseUrl: 'http://localhost:3000/api');
+  bool? _isFollowing;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFollowStatus();
+  }
+
+  Future<void> _checkFollowStatus() async {
+    try {
+      final status = await _followService.isFollowing(
+        followerUid: widget.loggedInUserUid,
+        followedUid: widget.profileOwnerUid,
+      );
+      if (mounted) {
+        setState(() {
+          _isFollowing = status;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    if (_isFollowing == null) return;
+    setState(() => _isLoading = true);
+
+    try {
+      if (_isFollowing!) {
+        await _followService.unfollowUser(
+          followerUid: widget.loggedInUserUid,
+          followedUid: widget.profileOwnerUid,
+        );
+      } else {
+        await _followService.followUser(
+          followerUid: widget.loggedInUserUid,
+          followedUid: widget.profileOwnerUid,
+        );
+      }
+      if (mounted) {
+        setState(() => _isFollowing = !_isFollowing!);
+      }
+    } catch (e) {
+      // Handle error
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 36,
+        width: 120,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_isFollowing == null) {
+      return const SizedBox.shrink();
+    }
+
+    return ElevatedButton(
+      onPressed: _toggleFollow,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _isFollowing! ? Colors.grey[400] : AppColors.primaryBlue,
+        foregroundColor: _isFollowing! ? Colors.black : Colors.white,
+        fixedSize: const Size(120, 36),
+      ),
+      child: Text(_isFollowing! ? 'Following' : 'Follow'),
     );
   }
 }
