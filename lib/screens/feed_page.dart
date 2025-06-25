@@ -10,7 +10,7 @@ import 'package:story_app/constants/app_colors.dart';
 import 'package:story_app/screens/profil_page.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-const String _kApiBaseUrl = 'http://localhost:3000/api';
+const String _kApiBaseUrl = 'https://story-app-api-eta.vercel.app/api';
 
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});

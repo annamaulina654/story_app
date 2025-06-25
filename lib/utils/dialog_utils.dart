@@ -11,10 +11,11 @@ class DialogUtils {
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
+            style: TextButton.styleFrom( foregroundColor: Colors.black),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true), 
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red,foregroundColor: Colors.white),
             child: const Text('Delete'),
           ),
         ],

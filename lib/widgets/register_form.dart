@@ -30,6 +30,11 @@ class _RegisterFormState extends State<RegisterForm> {
 
   final AuthService _authService = AuthService();
 
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmPasswordError;
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -114,6 +119,43 @@ class _RegisterFormState extends State<RegisterForm> {
     }
   }
 
+  String? _validateName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Full name must be filled';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email must be filled';
+    }
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+      return 'Invalid email format';
+    }
+    return null; 
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password must be filled';
+    }
+    if (value.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return null;
+  }
+  
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Confirm password must be filled';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords don\'t match';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,12 +178,11 @@ class _RegisterFormState extends State<RegisterForm> {
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Form(
                 key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Register",
+                      "Sign Up",
                       style: TextStyle(
                         color: AppColors.primaryBlue,
                         fontSize: 27,
@@ -153,11 +194,12 @@ class _RegisterFormState extends State<RegisterForm> {
                     CustomTextFormField(
                       controller: _nameController,
                       labelText: 'Full Name',
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Full Name is required';
-                        }
-                        return null;
+                      errorText: ValueNotifier(_nameError),
+                      validator: _validateName, 
+                      onChanged: (value) {
+                        setState(() {
+                          _nameError = _validateName(value);
+                        });
                       },
                     ),
                     const SizedBox(height: 30),
@@ -165,17 +207,12 @@ class _RegisterFormState extends State<RegisterForm> {
                       controller: _emailController,
                       labelText: 'Email',
                       keyboardType: TextInputType.emailAddress,
-                      errorText: _firebaseEmailError,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          _firebaseEmailError.value = null;
-                          return 'Email is required';
-                        }
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                          _firebaseEmailError.value = null;
-                          return 'Invalid email format';
-                        }
-                        return _firebaseEmailError.value;
+                      errorText: ValueNotifier(_emailError),
+                      validator: _validateEmail,
+                      onChanged: (value) {
+                        setState(() {
+                          _emailError = _validateEmail(value);
+                        });
                       },
                     ),
                     const SizedBox(height: 30),
@@ -183,21 +220,19 @@ class _RegisterFormState extends State<RegisterForm> {
                       controller: _passwordController,
                       labelText: 'Password',
                       obscureText: _obscurePassword,
-                      errorText: _firebasePasswordError,
+                      errorText: ValueNotifier(_passwordError),
                       suffixIcon: IconButton(
                         icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: AppColors.greyishBlue),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          _firebasePasswordError.value = null;
-                          return 'Password is required';
-                        }
-                        if (value.length < 6) {
-                          _firebasePasswordError.value = null;
-                          return 'Password must be at least 6 characters';
-                        }
-                        return _firebasePasswordError.value;
+                      validator: _validatePassword,
+                      onChanged: (value) {
+                        setState(() {
+                          _passwordError = _validatePassword(value);
+                          if (_confirmController.text.isNotEmpty) {
+                            _confirmPasswordError = _validateConfirmPassword(_confirmController.text);
+                          }
+                        });
                       },
                     ),
                     const SizedBox(height: 30),
@@ -205,18 +240,16 @@ class _RegisterFormState extends State<RegisterForm> {
                       controller: _confirmController,
                       labelText: 'Confirm Password',
                       obscureText: _obscureConfirmPassword,
+                      errorText: ValueNotifier(_confirmPasswordError),
                       suffixIcon: IconButton(
                         icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: AppColors.greyishBlue),
                         onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Confirm Password is required';
-                        }
-                        if (value != _passwordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
+                      validator: _validateConfirmPassword,
+                      onChanged: (value) {
+                        setState(() {
+                          _confirmPasswordError = _validateConfirmPassword(value);
+                        });
                       },
                     ),
                     const SizedBox(height: 25),

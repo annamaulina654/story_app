@@ -152,7 +152,7 @@ class __CommentTileState extends State<_CommentTile> {
   }
 
   Future<app_user.UserProfile> _fetchUserData(String firebaseUid) async {
-    final url = 'http://localhost:3000/api/users/$firebaseUid';
+    final url = 'https://story-app-api-eta.vercel.app/api/users/$firebaseUid';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

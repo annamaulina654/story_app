@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path/path.dart' as p;
 
 class ProfileService {
-  final String _kApiBaseUrl = 'http://localhost:3000/api';
+  final String _kApiBaseUrl = 'https://story-app-api-eta.vercel.app/api';
   final SupabaseClient _supabaseClient;
 
   final String _storageBucket = 'story.images';

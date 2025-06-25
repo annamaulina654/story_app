@@ -11,7 +11,7 @@ import 'package:story_app/services/story_service.dart';
 import 'package:story_app/services/permission_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-const String _kApiBaseUrl = 'http://localhost:3000/api';
+const String _kApiBaseUrl = 'https://story-app-api-eta.vercel.app/api';
 
 class AddStoryPage extends StatefulWidget {
   final FeedItemData? initialStoryData;
@@ -33,7 +33,7 @@ class _AddStoryPageState extends State<AddStoryPage> {
   Position? _currentPosition;
   late final StoryService _storyService;
   late final PermissionService _permissionService;
-  bool _useLocation = true;
+  bool _useLocation = false;
   String? _addStoryErrorMessage;
   bool _isSubmittingStory = false;
 

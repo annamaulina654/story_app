@@ -1,6 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:story_app/screens/feed_page.dart';
+import 'package:story_app/screens/welcome_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +34,7 @@ Future<void> main() async {
   await _initNotifications();
   await scheduleDailyNotification();
 
-  final followService = FollowService(baseUrl: 'http://localhost:3000/api');
+  final followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api');
 
   runApp(
     MultiProvider(
@@ -89,9 +92,33 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/',
+      initialRoute: '/', 
       routes: {
         '/': (context) => const SplashScreen(),
+        '/auth': (context) => const AuthGate(), 
+      },
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        if (snapshot.hasData) {
+          return const FeedPage();
+        }
+        else {
+          return const WelcomePage();
+        }
       },
     );
   }

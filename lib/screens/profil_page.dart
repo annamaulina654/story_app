@@ -43,16 +43,18 @@ class _ProfilePageState extends State<ProfilePage> {
     } else {
       setState(() {
         _isLoading = false;
-        _errorMessage = "User tidak ditemukan.";
+        _errorMessage = "Users not found.";
       });
     }
   }
 
   Future<void> _fetchProfileData(String uid) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (_userProfile == null) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
@@ -79,6 +81,26 @@ class _ProfilePageState extends State<ProfilePage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  void _navigateToFollowsPage(int initialIndex) async {
+    if (_userProfile == null) return;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FollowsPage(
+          userFirebaseUid: _userProfile!.firebaseUid,
+          username: _userProfile!.username,
+          initialTabIndex: initialIndex,
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      print("Reloading profile data...");
+      _fetchProfileData(_userProfile!.firebaseUid);
     }
   }
 
@@ -149,7 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.darkGrey)),
+            child: const Text('Cancel', style: TextStyle(color:  Colors.black)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -161,6 +183,36 @@ class _ProfilePageState extends State<ProfilePage> {
               foregroundColor: Colors.white,
             ),
             child: const Text('Yes, Log out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeveloperInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Developer Credits'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This application was developed by:'),
+            SizedBox(height: 12),
+            Text('• Anna Maulina', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text('• Amalia Fitri Lestari', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 4),
+            Text('• Shenny Nur Kholifah', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+            style: TextButton.styleFrom( foregroundColor: Colors.black )
+
           ),
         ],
       ),
@@ -188,6 +240,11 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: isCurrentUserProfile
             ? [
                 IconButton(
+                  icon: const Icon(Icons.info_outline, color: Colors.white),
+                  tooltip: 'Info',
+                  onPressed: () => _showDeveloperInfoDialog(context),
+                ),
+                IconButton(
                   icon: const Icon(Icons.logout, color: Colors.white),
                   onPressed: _showLogoutConfirmationDialog,
                 ),
@@ -195,7 +252,7 @@ class _ProfilePageState extends State<ProfilePage> {
             : [],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
           : _errorMessage != null
               ? _buildErrorWidget()
               : _buildProfileContent(),
@@ -288,13 +345,17 @@ class _ProfilePageState extends State<ProfilePage> {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[300],
-                            foregroundColor: Colors.black87,
-                            minimumSize: const Size.fromHeight(40),
+                            backgroundColor: Color(0xFF8CB0FF),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(45),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 0,
                           ),
-                          child: const Text('Edit Profil'),
+                          child: const Text('Edit Profile'),
                         )
-                      : _FollowButton( 
+                      : _FollowButton(
                           profileOwnerUid: _userProfile!.firebaseUid,
                           loggedInUserUid: _auth.currentUser!.uid,
                         ),
@@ -309,25 +370,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     _buildStatColumn(
                       'Followers',
                       _userProfile!.followerCount,
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
-                          userFirebaseUid: _userProfile!.firebaseUid,
-                          username: _userProfile!.username,
-                          initialTabIndex: 0,
-                        )));
-                      },
+                      onTap: () => _navigateToFollowsPage(0),
                     ),
                     const SizedBox(width: 40),
                     _buildStatColumn(
                       'Following',
                       _userProfile!.followingCount,
-                      onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => FollowsPage(
-                          userFirebaseUid: _userProfile!.firebaseUid,
-                          username: _userProfile!.username,
-                          initialTabIndex: 1,
-                        )));
-                      },
+                      onTap: () => _navigateToFollowsPage(1),
+
                     ),
                   ],
                 ),
@@ -473,7 +523,7 @@ class _FollowButton extends StatefulWidget {
 }
 
 class _FollowButtonState extends State<_FollowButton> {
-  final FollowService _followService = FollowService(baseUrl: 'http://localhost:3000/api');
+  final FollowService _followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api');
   bool? _isFollowing;
   bool _isLoading = true;
 
@@ -530,8 +580,7 @@ class _FollowButtonState extends State<_FollowButton> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const SizedBox(
-        height: 36,
-        width: 120,
+        height: 45,
         child: Center(child: CircularProgressIndicator()),
       );
     }
@@ -541,13 +590,19 @@ class _FollowButtonState extends State<_FollowButton> {
     }
 
     return ElevatedButton(
-      onPressed: _toggleFollow,
+      onPressed: _isLoading ? null : _toggleFollow,
       style: ElevatedButton.styleFrom(
-        backgroundColor: _isFollowing! ? Colors.grey[400] : AppColors.primaryBlue,
-        foregroundColor: _isFollowing! ? Colors.black : Colors.white,
-        fixedSize: const Size(120, 36),
+        backgroundColor: _isFollowing! ? Colors.grey[200] : AppColors.primaryBlue,
+        foregroundColor: _isFollowing! ? Colors.black87 : Colors.white,
+        minimumSize: const Size.fromHeight(45),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: 0,
       ),
-      child: Text(_isFollowing! ? 'Following' : 'Follow'),
+      child: _isLoading
+          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+          : Text(_isFollowing! ? 'Following' : 'Follow'),
     );
   }
 }

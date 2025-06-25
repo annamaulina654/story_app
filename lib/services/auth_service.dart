@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-const String _kApiBaseUrl = 'http://localhost:3000/api'; 
+const String _kApiBaseUrl = 'https://story-app-api-eta.vercel.app/api'; 
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;

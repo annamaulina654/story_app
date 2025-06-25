@@ -28,6 +28,9 @@ class _LoginFormPageState extends State<LoginFormPage> {
 
   final AuthService _authService = AuthService();
 
+  String? _emailError;
+  String? _passwordError;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -41,7 +44,12 @@ class _LoginFormPageState extends State<LoginFormPage> {
     _firebaseEmailError.value = null;
     _firebasePasswordError.value = null;
 
-    if (!_formKey.currentState!.validate()) {
+    setState(() {
+      _emailError = _validateEmail(_emailController.text);
+      _passwordError = _validatePassword(_passwordController.text);
+    });
+
+    if (_emailError != null || _passwordError != null) {
       return;
     }
 
@@ -116,11 +124,18 @@ class _LoginFormPageState extends State<LoginFormPage> {
         );
       }
     } catch (e) {
+      String errorMessage;
+      if (e.toString().contains('FormatException')) {
+        errorMessage = 'The server is responding, please try again in a few seconds.';
+      } else {
+        errorMessage = 'An unexpected error occurred: $e';
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('An unexpected error occurred: $e'),
-            backgroundColor: Colors.red,
+            content: Text(errorMessage),
+            backgroundColor: Colors.orange,
           ),
         );
       }
@@ -129,6 +144,23 @@ class _LoginFormPageState extends State<LoginFormPage> {
         _isLoading = false;
       });
     }
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email is required';
+    }
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+      return 'Invalid email format';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    return null;
   }
 
   @override
@@ -154,12 +186,11 @@ class _LoginFormPageState extends State<LoginFormPage> {
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Form(
                 key: _formKey,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Log In",
+                      "Sign In",
                       style: TextStyle(
                         color: AppColors.primaryBlue,
                         fontSize: 27,
@@ -172,17 +203,15 @@ class _LoginFormPageState extends State<LoginFormPage> {
                       controller: _emailController,
                       labelText: 'Email',
                       keyboardType: TextInputType.emailAddress,
-                      errorText: _firebaseEmailError,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          _firebaseEmailError.value = null;
-                          return 'Email is required';
-                        }
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                          _firebaseEmailError.value = null;
-                          return 'Invalid email format';
-                        }
-                        return _firebaseEmailError.value;
+                      errorText: ValueNotifier(_emailError ?? _firebaseEmailError.value),
+                      onChanged: (value) {
+                        setState(() {
+                          _emailError = _validateEmail(value);
+                          if (_firebaseEmailError.value != null) {
+                            _firebaseEmailError.value = null;
+                            _firebasePasswordError.value = null;
+                          }
+                        });
                       },
                     ),
                     const SizedBox(height: 30),
@@ -190,7 +219,7 @@ class _LoginFormPageState extends State<LoginFormPage> {
                       controller: _passwordController,
                       labelText: 'Password',
                       obscureText: _obscurePassword,
-                      errorText: _firebasePasswordError,
+                      errorText: ValueNotifier(_passwordError ?? _firebasePasswordError.value),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -202,12 +231,14 @@ class _LoginFormPageState extends State<LoginFormPage> {
                           });
                         },
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          _firebasePasswordError.value = null;
-                          return 'Password is required';
-                        }
-                        return _firebasePasswordError.value;
+                      onChanged: (value) {
+                        setState(() {
+                          _passwordError = _validatePassword(value);
+                          if (_firebasePasswordError.value != null) {
+                            _firebaseEmailError.value = null;
+                            _firebasePasswordError.value = null;
+                          }
+                        });
                       },
                     ),
                     const SizedBox(height: 25),

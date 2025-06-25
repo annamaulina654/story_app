@@ -33,7 +33,7 @@ class _UserStoryFeedPageState extends State<UserStoryFeedPage> {
   void initState() {
     super.initState();
     _stories = List.from(widget.stories); 
-    _storyService = StoryService("http://localhost:3000/api", supabase);
+    _storyService = StoryService("https://story-app-api-eta.vercel.app/api", supabase);
     _scrollController = ScrollController();
 
     Timer(const Duration(milliseconds: 50), () {
