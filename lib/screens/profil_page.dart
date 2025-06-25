@@ -523,7 +523,9 @@ class _FollowButton extends StatefulWidget {
 }
 
 class _FollowButtonState extends State<_FollowButton> {
-  final FollowService _followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api');
+  final FollowService _followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api',
+  notificationsPlugin: flutterLocalNotificationsPlugin,
+  );
   bool? _isFollowing;
   bool _isLoading = true;
 

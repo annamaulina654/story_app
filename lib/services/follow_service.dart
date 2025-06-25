@@ -4,12 +4,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/follow_user_data.dart';
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
 class FollowService {
-  final String baseUrl; 
-  FollowService({required this.baseUrl});
+  final String baseUrl;
+  final FlutterLocalNotificationsPlugin notificationsPlugin;
+
+  FollowService({
+    required this.baseUrl,
+    required this.notificationsPlugin,
+  });
 
   Future<bool> isFollowing({
     required String followerUid,
@@ -18,9 +20,7 @@ class FollowService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/follows/status?follower_firebase_uid=$followerUid&followed_firebase_uid=$followedUid'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       );
 
       if (response.statusCode == 200) {
@@ -41,9 +41,7 @@ class FollowService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/follow'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'follower_firebase_uid': followerUid,
           'followed_firebase_uid': followedUid,
@@ -51,6 +49,8 @@ class FollowService {
       );
 
       if (response.statusCode == 200) {
+        final followerName = FirebaseAuth.instance.currentUser?.displayName ?? 'Seseorang';
+        await showFollowNotification(followerName); // ✅ tampilkan notifikasi
         return true;
       } else {
         return false;
@@ -60,7 +60,7 @@ class FollowService {
     }
   }
 
-  Future<void> showFollowNotification() async {
+  Future<void> showFollowNotification(String followerName) async {
     const androidDetails = AndroidNotificationDetails(
       'follow_channel_id',
       'Follow Notifications',
@@ -71,10 +71,10 @@ class FollowService {
 
     const notificationDetails = NotificationDetails(android: androidDetails);
 
-    await flutterLocalNotificationsPlugin.show(
+    await notificationsPlugin.show(
       1,
       'Pengikut Baru!',
-      'Seseorang telah mengikuti kamu!',
+      '$followerName mulai mengikuti kamu!',
       notificationDetails,
     );
   }
@@ -86,9 +86,7 @@ class FollowService {
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/unfollow'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'follower_firebase_uid': followerUid,
           'followed_firebase_uid': followedUid,

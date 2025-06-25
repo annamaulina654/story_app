@@ -4,6 +4,7 @@ import 'package:story_app/constants/app_colors.dart';
 import 'package:story_app/models/follow_user_data.dart';
 import 'package:story_app/screens/profil_page.dart';
 import 'package:story_app/services/follow_service.dart';
+import 'package:story_app/main.dart';
 
 class FollowsPage extends StatefulWidget {
   final String userFirebaseUid;
@@ -23,7 +24,10 @@ class FollowsPage extends StatefulWidget {
 
 class _FollowsPageState extends State<FollowsPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final FollowService _followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api');
+  final FollowService _followService = FollowService(
+  baseUrl: 'https://story-app-api-eta.vercel.app/api',
+  notificationsPlugin: flutterLocalNotificationsPlugin, 
+  );
 
   late Future<List<FollowUser>> _followersFuture;
   late Future<List<FollowUser>> _followingFuture;

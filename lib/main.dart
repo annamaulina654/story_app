@@ -14,6 +14,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 late final SupabaseClient supabase;
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+    
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +31,10 @@ Future<void> main() async {
 
   await _initNotifications();
 
-  final followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api');
+  final followService = FollowService(
+    baseUrl: 'https://story-app-api-eta.vercel.app/api',
+    notificationsPlugin: flutterLocalNotificationsPlugin, // <- Dikirim ke service
+  );
 
   runApp(
     MultiProvider(
@@ -50,26 +54,6 @@ Future<void> _initNotifications() async {
   await flutterLocalNotificationsPlugin.initialize(initSettings);
 }
 
-// Fungsi untuk menampilkan notifikasi ketika difollow
-Future<void> showFollowNotification(String followerName) async {
-  const androidDetails = AndroidNotificationDetails(
-    'follow_channel_id',
-    'Follow Notifications',
-    channelDescription: 'Notifikasi ketika ada yang mengikuti kamu',
-    importance: Importance.max,
-    priority: Priority.high,
-  );
-
-  const notificationDetails = NotificationDetails(android: androidDetails);
-
-  await flutterLocalNotificationsPlugin.show(
-    1,
-    'Kamu punya pengikut baru!',
-    '$followerName mulai mengikuti kamu!',
-    notificationDetails,
-  );
-}
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -77,10 +61,10 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/', 
+      initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
-        '/auth': (context) => const AuthGate(), 
+        '/auth': (context) => const AuthGate(),
       },
     );
   }
@@ -100,8 +84,7 @@ class AuthGate extends StatelessWidget {
 
         if (snapshot.hasData) {
           return const FeedPage();
-        }
-        else {
+        } else {
           return const WelcomePage();
         }
       },
