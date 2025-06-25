@@ -29,19 +29,24 @@ class _CommentPageState extends State<CommentPage> {
 
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        transaction.set(commentsCollection.doc(), {
+        final metaSnapshot = await transaction.get(storyMetaRef); // ✅ BACA dulu
+
+        final newCommentRef = commentsCollection.doc(); // Buat referensi baru
+
+        transaction.set(newCommentRef, {
           'story_id': widget.postId,
           'user_id': _currentUserId,
           'comment_text': commentText,
           'timestamp': FieldValue.serverTimestamp(),
         });
-        final metaSnapshot = await transaction.get(storyMetaRef);
+
         if (metaSnapshot.exists) {
-            transaction.update(storyMetaRef, {'comments_count': FieldValue.increment(1)});
+          transaction.update(storyMetaRef, {'comments_count': FieldValue.increment(1)});
         } else {
-            transaction.set(storyMetaRef, {'likes_count': 0, 'comments_count': 1});
+          transaction.set(storyMetaRef, {'likes_count': 0, 'comments_count': 1});
         }
       });
+
       _commentController.clear();
       FocusScope.of(context).unfocus();
     } catch (e) {
@@ -49,6 +54,7 @@ class _CommentPageState extends State<CommentPage> {
         SnackBar(content: Text('Failed to post comment: $e')),
       );
     }
+
   }
 
   @override
@@ -87,25 +93,39 @@ class _CommentPageState extends State<CommentPage> {
               },
             ),
           ),
-          const Divider(height: 1),
+          // const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    decoration: const InputDecoration.collapsed(hintText: 'Write a comment...'),
-                    onSubmitted: (_) => _submitComment(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                  border: Border.all(
+                    color: const Color.fromARGB(255, 109, 165, 225), // warna garis pinggir
+                    width: 1.5, // ketebalan garis pinggir
+                  ), // bisa diganti sesuai kebutuhan
+                borderRadius: BorderRadius.circular(20), // membuat pinggiran melengkung
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _commentController,
+                      decoration: const InputDecoration.collapsed(
+                        hintText: 'Write a comment...',
+                      ),
+                      onSubmitted: (_) => _submitComment(),
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: AppColors.primaryBlue),
-                  onPressed: _submitComment,
-                ),
-              ],
+                  IconButton(
+                    icon: const Icon(Icons.send, color: AppColors.primaryBlue),
+                    onPressed: _submitComment,
+                  ),
+                ],
+              ),
             ),
           ),
+
         ],
       ),
     );
