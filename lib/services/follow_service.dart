@@ -1,7 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/follow_user_data.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 class FollowService {
   final String baseUrl; 
@@ -54,6 +58,25 @@ class FollowService {
     } catch (e) {
       return false;
     }
+  }
+
+  Future<void> showFollowNotification() async {
+    const androidDetails = AndroidNotificationDetails(
+      'follow_channel_id',
+      'Follow Notifications',
+      channelDescription: 'Notifikasi saat ada yang mengikuti',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const notificationDetails = NotificationDetails(android: androidDetails);
+
+    await flutterLocalNotificationsPlugin.show(
+      1,
+      'Pengikut Baru!',
+      'Seseorang telah mengikuti kamu!',
+      notificationDetails,
+    );
   }
 
   Future<bool> unfollowUser({

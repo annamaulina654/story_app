@@ -10,8 +10,6 @@ import 'package:provider/provider.dart';
 import 'services/follow_service.dart';
 import 'providers/follow_status_provider.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
 late final SupabaseClient supabase;
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -30,9 +28,7 @@ Future<void> main() async {
   );
   supabase = Supabase.instance.client;
 
-  tz.initializeTimeZones();
   await _initNotifications();
-  await scheduleDailyNotification();
 
   final followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api');
 
@@ -54,35 +50,24 @@ Future<void> _initNotifications() async {
   await flutterLocalNotificationsPlugin.initialize(initSettings);
 }
 
-Future<void> scheduleDailyNotification() async {
-  await flutterLocalNotificationsPlugin.zonedSchedule(
-    0,
-    'Story Reminder',
-    'Jangan lupa buat story hari ini!',
-    _nextInstanceOfTime(21, 00),
-    const NotificationDetails(
-      android: AndroidNotificationDetails(
-        'daily_channel_id',
-        'Daily Notifications',
-        channelDescription: 'Pengingat harian untuk membuat story',
-        importance: Importance.max,
-        priority: Priority.high,
-      ),
-    ),
-    androidAllowWhileIdle: true,
-    matchDateTimeComponents: DateTimeComponents.time,
-    uiLocalNotificationDateInterpretation:
-        UILocalNotificationDateInterpretation.wallClockTime,
+// Fungsi untuk menampilkan notifikasi ketika difollow
+Future<void> showFollowNotification(String followerName) async {
+  const androidDetails = AndroidNotificationDetails(
+    'follow_channel_id',
+    'Follow Notifications',
+    channelDescription: 'Notifikasi ketika ada yang mengikuti kamu',
+    importance: Importance.max,
+    priority: Priority.high,
   );
-}
 
-tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
-  final now = tz.TZDateTime.now(tz.local);
-  var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-  if (scheduledDate.isBefore(now)) {
-    scheduledDate = scheduledDate.add(const Duration(days: 1));
-  }
-  return scheduledDate;
+  const notificationDetails = NotificationDetails(android: androidDetails);
+
+  await flutterLocalNotificationsPlugin.show(
+    1,
+    'Kamu punya pengikut baru!',
+    '$followerName mulai mengikuti kamu!',
+    notificationDetails,
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -123,4 +108,3 @@ class AuthGate extends StatelessWidget {
     );
   }
 }
-
