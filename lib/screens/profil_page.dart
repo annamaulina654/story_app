@@ -128,39 +128,43 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _performLogout() async {
-    final hasInternet = await Connectivity().checkConnectivity() != ConnectivityResult.none;
-    if (!hasInternet) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('No internet connection. Cannot log out.'),
-            backgroundColor: AppColors.redError,
-          ),
-        );
-      }
-      return;
-    }
+Future<void> _performLogout() async {
+  final hasInternet = await Connectivity().checkConnectivity() != ConnectivityResult.none;
 
-    try {
-      await _auth.signOut();
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to log out: $e'),
-            backgroundColor: AppColors.redError,
-          ),
-        );
-      }
+  if (!hasInternet) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No internet connection. Cannot log out.'),
+          backgroundColor: AppColors.redError,
+        ),
+      );
+    }
+    return;
+  }
+
+  try {
+    await _auth.signOut();
+
+    await showLogoutNotification(); // ✅ Tambahkan notifikasi di sini
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to log out: $e'),
+          backgroundColor: AppColors.redError,
+        ),
+      );
     }
   }
+}
 
   void _showLogoutConfirmationDialog() {
     showDialog(
@@ -523,7 +527,7 @@ class _FollowButton extends StatefulWidget {
 
 class _FollowButtonState extends State<_FollowButton> {
   final FollowService _followService = FollowService(baseUrl: 'https://story-app-api-eta.vercel.app/api',
-  notificationsPlugin: flutterLocalNotificationsPlugin,
+  // notificationsPlugin: flutterLocalNotificationsPlugin,
   );
   bool? _isFollowing;
   bool _isLoading = true;

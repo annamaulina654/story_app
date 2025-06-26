@@ -14,7 +14,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 late final SupabaseClient supabase;
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
-    
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +32,6 @@ Future<void> main() async {
 
   final followService = FollowService(
     baseUrl: 'https://story-app-api-eta.vercel.app/api',
-    notificationsPlugin: flutterLocalNotificationsPlugin, // <- Dikirim ke service
   );
 
   runApp(
@@ -52,6 +50,26 @@ Future<void> _initNotifications() async {
   const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
   const initSettings = InitializationSettings(android: androidSettings);
   await flutterLocalNotificationsPlugin.initialize(initSettings);
+}
+
+/// Fungsi untuk menampilkan notifikasi logout
+Future<void> showLogoutNotification() async {
+  const androidDetails = AndroidNotificationDetails(
+    'logout_channel_id',
+    'Logout Notifications',
+    channelDescription: 'Notifikasi saat berhasil logout',
+    importance: Importance.max,
+    priority: Priority.high,
+  );
+
+  const notificationDetails = NotificationDetails(android: androidDetails);
+
+  await flutterLocalNotificationsPlugin.show(
+    0,
+    'Logout Berhasil',
+    'Sampai jumpa! Kami tunggu ceritamu berikutnya.',
+    notificationDetails,
+  );
 }
 
 class MyApp extends StatelessWidget {
