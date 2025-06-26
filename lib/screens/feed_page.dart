@@ -293,8 +293,6 @@ class _FeedPageState extends State<FeedPage> {
                               currentUserId: currentUserId,
                               onEdit: () => _editPost(story),
                               onDelete: () => _deletePost(story),
-                              onFollow: () =>
-                                  _followUser(story.authorFirebaseUid),
                             );
                           },
                         );

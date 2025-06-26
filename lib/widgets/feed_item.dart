@@ -21,7 +21,6 @@ class FeedItem extends StatefulWidget {
   final String? currentUserId; 
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
-  final VoidCallback? onFollow;
 
   const FeedItem({
     super.key,
@@ -37,7 +36,6 @@ class FeedItem extends StatefulWidget {
     this.currentUserId,
     this.onEdit,
     this.onDelete,
-    this.onFollow,
   });
 
   @override
